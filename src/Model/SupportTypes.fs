@@ -11,8 +11,11 @@ type Bank = Bank with
         | Some id -> $"__export__res_bank_{id}"
         | None -> ""
 
-type Partner = Partner with
+type ResPartner = ResPartner with
     static member exportId id = $"__export__res_partner_{id}"
 
-type PartnerBank = PartnerBank with
+type ResPartnerBank = ResPartnerBank with
     static member exportId id = $"__export__res_partner_bank_{id}"
+
+type AccountPaymentTerm = AccountPaymentTerm with
+    static member exportId id = $"__export__account_payment_term_{id}"

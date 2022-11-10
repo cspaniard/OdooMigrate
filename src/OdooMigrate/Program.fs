@@ -12,8 +12,10 @@ IExcelBroker.init "/home/dsanroma/odoo_export"
 
 let exportList =
     [
-        ("res_bank", IOdooExportService.exportResBank)
-        ("res_partner_bank", IOdooExportService.exportResPartnerBank)
+        // ("res_bank", IOdooExportService.exportResBank)
+        // ("res_partner_bank", IOdooExportService.exportResPartnerBank)
+        ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
+        // ("account_payment_term_line", IOdooExportService.exportAccountPaymentTermLine)
     ]
 
 Console.ForegroundColor <- ConsoleColor.Yellow
@@ -21,5 +23,5 @@ Console.WriteLine "\nExportando datos/modelos:"
 Console.ForegroundColor <- ConsoleColor.White
 
 exportList
-|> List.iteri (fun i (moduleName, exportFun) -> Console.WriteLine $"{i+1,3} - {moduleName}"
-                                                exportFun ())
+|> List.iteri (fun i (modelName, exportFun) -> Console.WriteLine $"{i+1,3} - {modelName}"
+                                               exportFun modelName)
