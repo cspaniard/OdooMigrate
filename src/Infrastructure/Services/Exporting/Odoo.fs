@@ -108,3 +108,32 @@ type Service () =
         header::(flattenData joinData)
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportResUsers (modelName : string) =
+
+        let header = [ "id" ; "login"; "name" ; "notification_type" ; "sale_team_id/id"
+                       "working_year" ; "lowest_working_date" ]
+
+        let sql = $"""Select res_users.id, login, name, notification_type, working_year, lowest_working_date
+                      from res_users
+                      join res_partner on res_users.partner_id = res_partner.id
+                      where res_users.company_id={ORIG_COMPANY_ID}
+                        and res_users.active = true"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> ResUsers.exportId
+                reader.text "login"
+                reader.text "name"
+                reader.text "notification_type"
+                "sales_team.team_sales_department"     // sale_team_id
+                reader.textOrNone "working_year" |> Option.defaultValue ""
+                match reader.dateOnlyOrNone "lowest_working_date" with
+                | Some d -> $"{d.Year}-{d.Month}-{d.Day}"
+                | None -> ""
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
