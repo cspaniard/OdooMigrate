@@ -5,20 +5,25 @@ module Constants =
     let [<Literal>] ORIG_COMPANY_ID = "2"
     let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_gestion1; Username=dsanroma; Password=pepe;"
 
-type Bank = Bank with
-    static member exportId idOption =
+module Helpers =
+    let exportId (modelName : string) (idOption : 'a option) =
         match idOption with
-        | Some id -> $"__export__res_bank_{id}"
+        | Some id -> $"__export__{modelName}_{id}"
         | None -> ""
+
+open Helpers
+
+type Bank = Bank with
+    static member exportId idOption = exportId "res_bank" idOption
 
 type ResUsers = ResUsers with
     static member exportId id = $"__export__res_users_{id}"
 
 type ResPartner = ResPartner with
-    static member exportId id = $"__export__res_partner_{id}"
+    static member exportId idOption = exportId "res_partner" idOption
 
 type ResPartnerBank = ResPartnerBank with
-    static member exportId id = $"__export__res_partner_bank_{id}"
+    static member exportId idOption = exportId "res_partner_bank" idOption
 
 type AccountPaymentTerm = AccountPaymentTerm with
-    static member exportId id = $"__export__account_payment_term_{id}"
+    static member exportId idOption = exportId "payment_term" idOption
