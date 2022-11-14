@@ -14,10 +14,11 @@ let exportList =
     [
         // ("res_bank", IOdooExportService.exportResBank)
         // ("res_partner_bank", IOdooExportService.exportResPartnerBank)
-        // ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
+        ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
         // ("res_users", IOdooExportService.exportResUsers)
-        // ("res_partner", IOdooExportService.exportResPartner)
-        ("account_account", IOdooExportService.exportAccountAccount)
+        ("res_partner", IOdooExportService.exportResPartner)
+        // ("account_account", IOdooExportService.exportAccountAccount)
+        ("account_journal", IOdooExportService.exportAccountJournal)
     ]
 
 Console.ForegroundColor <- ConsoleColor.Yellow

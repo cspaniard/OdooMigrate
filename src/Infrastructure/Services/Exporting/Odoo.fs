@@ -156,7 +156,7 @@ type Service () =
                        "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
                        "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company" ; "partner_share"
                        "commercial_partner_id" ; "commercial_company_name" ; "not_in_mod347"
-                       "sale_journal" ; "purchase_journal" ; "aeat_anonymous_cash_customer"
+                       "sale_journal_id/id" ; "purchase_journal_id/id" ; "aeat_anonymous_cash_customer"
                        "aeat_partner_vat" ; "aeat_partner_name" ; "aeat_data_diff"
                        "property_account_receivable_id" ; "property_account_payable_id"
                        "property_payment_term_id/id" ]
@@ -237,8 +237,8 @@ type Service () =
                 reader.textOrNone "commercial_company_name" |> orEmptyString
                 reader.boolOrNone "not_in_mod347" |> orEmptyString
 
-                reader.intOrNone "sale_journal" |> orEmptyString
-                reader.intOrNone "purchase_journal" |> orEmptyString
+                reader.intOrNone "sale_journal" |> AccountJournal.exportId
+                reader.intOrNone "purchase_journal" |> AccountJournal.exportId
                 reader.boolOrNone "aeat_anonymous_cash_customer" |> orEmptyString
 
                 reader.textOrNone "aeat_partner_vat" |> orEmptyString
@@ -248,7 +248,7 @@ type Service () =
                 reader.textOrNone "property_account_receivable_id" |> Option.defaultValue "430000"
                 reader.textOrNone "property_account_payable_id" |> orEmptyString
 
-                reader.intOrNone "account_payment_term_id" |> AccountPaymentTerm.exportId
+                (reader.intOrNone "account_payment_term_id" |> AccountPaymentTerm.exportId)
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -283,6 +283,36 @@ type Service () =
                 "account." + reader.text "user_type_id"
                 reader.boolOrNone "reconcile" |> orEmptyString
                 reader.int "last_visible_year" |> string
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportAccountJournal (modelName : string) =
+
+        let header = [ "id" ; "name" ; "code"; "type" ; "sequence"
+                       "n43_date_type" ; "default_account_id" ; "refund_sequence" ]
+
+        let sql = $"""select aj.id, aj.name, aj.code, aj.type, aj.sequence, n43_date_type,
+                             case when aj.type in ('purchase', 'sale', 'bank', 'cash') then aa.code end account_id,
+                             case when aj.type in ('purchase', 'sale', 'bank', 'cash') then true else false end refund_sequence
+                             from account_journal as aj
+                             left join account_account as aa on aj.default_credit_account_id = aa.id
+                      where aj.company_id={ORIG_COMPANY_ID}
+                      and aj.code <> 'STJ'"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> AccountJournal.exportId
+                reader.text "name"
+                reader.text "code"
+                reader.text "type"
+                reader.int "sequence" |> string
+                reader.text "n43_date_type"
+                reader.textOrNone "account_id" |> orEmptyString
+                reader.boolOrNone "refund_sequence" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun

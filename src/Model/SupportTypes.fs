@@ -26,4 +26,7 @@ type ResPartnerBank = ResPartnerBank with
     static member exportId idOption = exportId "res_partner_bank" idOption
 
 type AccountPaymentTerm = AccountPaymentTerm with
-    static member exportId idOption = exportId "payment_term" idOption
+    static member exportId idOption = exportId "account_payment_term" idOption
+
+type AccountJournal = AccountJournal with
+    static member exportId idOption = exportId "account_journal" idOption
