@@ -36,3 +36,6 @@ type AccountBankingMandate = AccountBankingMandate with
 
 type AccountProductPriceList = AccountProductPriceList with
     static member exportId idOption = exportId "product_pricelist" idOption
+
+type ProductCategory = ProductCategory with
+    static member exportId idOption = exportId "product_category" idOption

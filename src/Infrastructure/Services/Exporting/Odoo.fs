@@ -377,3 +377,26 @@ type Service () =
         header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportProductCategory (modelName : string) =
+
+        let header = [ "id" ; "parent_path" ; "name" ; "complete_name"; "parent_id/.id" ; "allow_negative_stock" ]
+
+        let sql = $"""select pg.id, pg.parent_path, pg.name, pg.complete_name, pg.parent_id, pg.allow_negative_stock
+                      from product_category as pg
+                      where pg.id > 3"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> ProductCategory.exportId
+                reader.text "parent_path"
+                reader.text "name"
+                reader.text "complete_name"
+                reader.intOrNone "parent_id" |> orEmptyString
+                reader.boolOrNone "allow_negative_stock" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
