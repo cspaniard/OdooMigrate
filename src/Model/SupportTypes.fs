@@ -30,3 +30,9 @@ type AccountPaymentTerm = AccountPaymentTerm with
 
 type AccountJournal = AccountJournal with
     static member exportId idOption = exportId "account_journal" idOption
+
+type AccountBankingMandate = AccountBankingMandate with
+    static member exportId idOption = exportId "account_banking_mandate" idOption
+
+type AccountProductPriceList = AccountProductPriceList with
+    static member exportId idOption = exportId "product_pricelist" idOption

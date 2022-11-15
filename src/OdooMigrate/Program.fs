@@ -12,13 +12,15 @@ IExcelBroker.init "/home/dsanroma/odoo_export"
 
 let exportList =
     [
-        ("res_bank", IOdooExportService.exportResBank)
-        ("res_partner_bank", IOdooExportService.exportResPartnerBank)
-        ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
-        ("res_users", IOdooExportService.exportResUsers)
-        ("res_partner", IOdooExportService.exportResPartner)
-        ("account_account", IOdooExportService.exportAccountAccount)
-        ("account_journal", IOdooExportService.exportAccountJournal)
+        // ("res_bank", IOdooExportService.exportResBank)
+        // ("res_partner_bank", IOdooExportService.exportResPartnerBank)
+        // ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
+        // ("res_users", IOdooExportService.exportResUsers)
+        // ("res_partner", IOdooExportService.exportResPartner)
+        // ("account_account", IOdooExportService.exportAccountAccount)
+        // ("account_journal", IOdooExportService.exportAccountJournal)
+        // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
+        ("product_pricelist", IOdooExportService.exportProductPriceList)
     ]
 
 Console.ForegroundColor <- ConsoleColor.Yellow

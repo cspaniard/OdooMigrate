@@ -1,5 +1,6 @@
 namespace Services.Exporting.Odoo
 
+open System
 open Model
 open Model.Constants
 
@@ -26,6 +27,14 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
+    static let dateOrEmptyString (optVal : DateOnly option) =
+        match optVal with
+        | Some d -> d.ToString("yyyy-MM-dd")
+        | None -> ""
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+
     static member exportResBank (modelName : string) =
 
         let header = [ "id" ; "name" ; "bic" ; "country/id" ]
@@ -140,9 +149,7 @@ type Service () =
                 "1"
                 // "sales_team.team_sales_department"     // sale_team_id
                 reader.textOrNone "working_year" |> orEmptyString
-                match reader.dateOnlyOrNone "lowest_working_date" with
-                | Some d -> $"{d.Year}-{d.Month}-{d.Day}"
-                | None -> ""
+                reader.dateOnlyOrNone "lowest_working_date" |> dateOrEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -315,6 +322,56 @@ type Service () =
                 reader.text "n43_date_type"
                 reader.textOrNone "account_id" |> orEmptyString
                 reader.boolOrNone "refund_sequence" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportAccountBankingMandate (modelName : string) =
+
+        let header = [ "id" ; "format" ; "type"; "partner_bank_id/id" ; "signature_date"
+                       "state" ; "recurrent_sequence_type" ; "scheme" ]
+
+        let sql = $"""select abm.id, abm.format, abm.type, abm.partner_bank_id, abm.partner_id, abm.signature_date,
+                             abm.last_debit_date, abm.state, abm.recurrent_sequence_type, abm.scheme
+                      from account_banking_mandate as abm
+                      join res_partner as rp on abm.partner_id = rp.id
+                      where abm.company_id={ORIG_COMPANY_ID}
+                      and abm.state = 'valid'
+                      and rp.active = true"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> AccountBankingMandate.exportId
+                reader.text "format"
+                reader.text "type"
+                "__import__." + (reader.intOrNone "partner_bank_id" |> ResPartnerBank.exportId)
+                reader.dateOnlyOrNone "signature_date" |> dateOrEmptyString
+                reader.textOrNone "state" |> orEmptyString
+                reader.textOrNone "recurrent_sequence_type" |> orEmptyString
+                reader.textOrNone "scheme" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportProductPriceList (modelName : string) =
+
+        let header = [ "id" ; "name" ; "sequence"; "discount_policy" ]
+
+        let sql = $"""select ppl.id, ppl.name, ppl.sequence, ppl.discount_policy
+                      from product_pricelist as ppl"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> AccountProductPriceList.exportId
+                reader.text "name"
+                reader.intOrNone "sequence" |> orEmptyString
+                reader.textOrNone "discount_policy" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
