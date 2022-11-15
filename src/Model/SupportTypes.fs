@@ -17,7 +17,7 @@ type Bank = Bank with
     static member exportId idOption = exportId "res_bank" idOption
 
 type ResUsers = ResUsers with
-    static member exportId id = $"__export__res_users_{id}"
+    static member exportId idOption = exportId "res_users" idOption
 
 type ResPartner = ResPartner with
     static member exportId idOption = exportId "res_partner" idOption

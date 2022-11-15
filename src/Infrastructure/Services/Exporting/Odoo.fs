@@ -30,7 +30,7 @@ type Service () =
 
         let header = [ "id" ; "name" ; "bic" ; "country/id" ]
 
-        let sql = """Select id, name, bic
+        let sql = """select id, name, bic
                      from res_bank
                      where active=true"""
 
@@ -38,7 +38,7 @@ type Service () =
             [
                 reader.int "id" |> Some |> Bank.exportId
                 reader.text "name"
-                reader.textOrNone "bic" |> Option.defaultValue ""
+                reader.textOrNone "bic" |> orEmptyString
                 "base.es"      // country/id
             ]
 
@@ -52,7 +52,7 @@ type Service () =
         let header = [ "id" ; "bank_id/id" ; "acc_number"; "sequence"
                        "partner_id/id" ; "acc_holder_name" ; "description" ]
 
-        let sql = $"""Select rpb.id, rpb.acc_number, rpb.sequence, rpb.partner_id, rpb.bank_id,
+        let sql = $"""select rpb.id, rpb.acc_number, rpb.sequence, rpb.partner_id, rpb.bank_id,
                              rpb.acc_holder_name, rpb.description
                       from res_partner_bank as rpb
                       join res_partner as rp on rpb.partner_id = rp.id
@@ -66,8 +66,8 @@ type Service () =
                 reader.text "acc_number"
                 reader.int "sequence" |> string
                 reader.intOrNone "partner_id" |> ResPartner.exportId
-                reader.textOrNone "acc_holder_name" |> Option.defaultValue ""
-                reader.textOrNone "description" |> Option.defaultValue ""
+                reader.textOrNone "acc_holder_name" |> orEmptyString
+                reader.textOrNone "description" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -81,7 +81,7 @@ type Service () =
                        "line_ids/value" ; "line_ids/value_amount" ; "line_ids/days"
                        "line_ids/day_of_the_month" ; "line_ids/option" ; "line_ids/sequence" ]
 
-        let sql = $"""Select id, name, note, sequence
+        let sql = $"""select id, name, note, sequence
                       from account_payment_term
                       where company_id={ORIG_COMPANY_ID}"""
 
@@ -93,7 +93,7 @@ type Service () =
                 reader.int "sequence" |> string
             ]
 
-        let sqlForLines = $"""Select id, value, value_amount, days, day_of_the_month,
+        let sqlForLines = $"""select id, value, value_amount, days, day_of_the_month,
                                      option, payment_id, sequence
                               from {modelName}_line"""
 
@@ -125,21 +125,21 @@ type Service () =
         let header = [ "id" ; "login"; "name" ; "notification_type" ; "team_id/.id"
                        "working_year" ; "lowest_working_date" ]
 
-        let sql = $"""Select res_users.id, login, name, notification_type, working_year, lowest_working_date
+        let sql = $"""select res_users.id, login, name, notification_type, working_year, lowest_working_date
                       from res_users
                       join res_partner on res_users.partner_id = res_partner.id
                       where res_users.company_id={ORIG_COMPANY_ID}
-                        and res_users.active = true"""
+                      and res_users.active = true"""
 
         let readerFun (reader : RowReader) =
             [
-                reader.int "id" |> ResUsers.exportId
+                reader.intOrNone "id" |> ResUsers.exportId
                 reader.text "login"
                 reader.text "name"
                 reader.text "notification_type"
                 "1"
                 // "sales_team.team_sales_department"     // sale_team_id
-                reader.textOrNone "working_year" |> Option.defaultValue ""
+                reader.textOrNone "working_year" |> orEmptyString
                 match reader.dateOnlyOrNone "lowest_working_date" with
                 | Some d -> $"{d.Year}-{d.Month}-{d.Day}"
                 | None -> ""
@@ -152,7 +152,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportResPartner (modelName : string) =
 
-        let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id"
+        let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
                        "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
                        "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company" ; "partner_share"
                        "commercial_partner_id" ; "commercial_company_name" ; "not_in_mod347"
@@ -163,44 +163,47 @@ type Service () =
 
         let sql = $"""with
                       rel_payable as (
-                          select id, company_id, split_part(res_id, ',', 2)::integer as partner_id, split_part(value_reference, ',', 2)::integer as account_id
+                          select id, company_id,
+                                 split_part(res_id, ',', 2)::integer as partner_id,
+                                 split_part(value_reference, ',', 2)::integer as account_id
                           from ir_property
                           where name = 'property_account_payable_id'
                             and res_id is not null
                       ),
                       rel_receivable as (
-                          select id, company_id, split_part(res_id, ',', 2)::integer as partner_id, split_part(value_reference, ',', 2)::integer as account_id
+                          select id, company_id,
+                                 split_part(res_id, ',', 2)::integer as partner_id,
+                                 split_part(value_reference, ',', 2)::integer as account_id
                           from ir_property
                           where name = 'property_account_receivable_id'
                             and res_id is not null
                       ),
-
                       rel_payment_term as (
-                          select id, company_id, split_part(res_id, ',', 2)::integer as partner_id, split_part(value_reference, ',', 2)::integer as payment_term_id
+                          select id, company_id,
+                                 split_part(res_id, ',', 2)::integer as partner_id,
+                                 split_part(value_reference, ',', 2)::integer as payment_term_id
                           from ir_property
                           where name = 'property_payment_term_id'
                             and res_id is not null
                       )
-                      Select rp.id, rp.name, rp.lang, rp.tz, rp.user_id,
-                           rp.vat, rp.website, rp.comment, rp.type, rp.street, rp.street2, rp.zip, rp.city,
-                           rcs.code as state_id, rp.country_id, rp.email, rp.phone, rp.mobile, rp.is_company, rp.partner_share,
-                           rp.commercial_partner_id, rp.commercial_company_name, rp.not_in_mod347,
-                           rp.sale_journal, rp.purchase_journal, rp.aeat_anonymous_cash_customer,
-                           rp.aeat_partner_vat, rp.aeat_partner_name, rp.aeat_data_diff,
-                           acc_rec.code as property_account_receivable_id, acc.code as property_account_payable_id,
-                           apt.id as account_payment_term_id
+                      select rp.id, rp.name, rp.lang, rp.tz, rp.user_id, rp.parent_id,
+                             rp.vat, rp.website, rp.comment, rp.type, rp.street, rp.street2, rp.zip, rp.city,
+                             rcs.code as state_id, rp.country_id, rp.email, rp.phone, rp.mobile, rp.is_company,
+                             rp.partner_share, rp.commercial_partner_id, rp.commercial_company_name, rp.not_in_mod347,
+                             rp.sale_journal, rp.purchase_journal, rp.aeat_anonymous_cash_customer,
+                             rp.aeat_partner_vat, rp.aeat_partner_name, rp.aeat_data_diff,
+                             acc_rec.code as property_account_receivable_id, acc.code as property_account_payable_id,
+                             apt.id as account_payment_term_id
                       from res_partner as rp
                       left join rel_payable as pay on rp.id = pay.partner_id
                       left join rel_receivable as rec on rp.id = rec.partner_id
                       left join account_account as acc on pay.account_id = acc.id
                       left join account_account as acc_rec on rec.account_id = acc_rec.id
-                      left join res_users on rp.email = res_users.login
                       left join res_country_state as rcs on rp.state_id = rcs.id
                       left join rel_payment_term as rp_term on rp.id = rp_term.partner_id
                       left join account_payment_term as apt on rp_term.payment_term_id = apt.id
                       where rp.company_id={ORIG_COMPANY_ID}
                       and rp.active = true
-                      -- and res_users.login is null
                       or rp.name ilike 'Deysanka SL'
                       order by rp.id"""
 
@@ -210,9 +213,8 @@ type Service () =
                 reader.text "name"
                 reader.textOrNone "lang" |> orEmptyString
                 reader.textOrNone "tz" |> orEmptyString
-                match reader.intOrNone "user_id" with
-                | Some u -> u |> ResUsers.exportId
-                | None -> ""
+                reader.intOrNone "user_id" |> ResUsers.exportId
+                reader.intOrNone "parent_id" |> ResPartner.exportId
 
                 reader.textOrNone "vat" |> orEmptyString
                 reader.textOrNone "website" |> orEmptyString
@@ -298,8 +300,8 @@ type Service () =
         let sql = $"""select aj.id, aj.name, aj.code, aj.type, aj.sequence, n43_date_type,
                              case when aj.type in ('purchase', 'sale', 'bank', 'cash') then aa.code end account_id,
                              case when aj.type in ('purchase', 'sale', 'bank', 'cash') then true else false end refund_sequence
-                             from account_journal as aj
-                             left join account_account as aa on aj.default_credit_account_id = aa.id
+                      from account_journal as aj
+                      left join account_account as aa on aj.default_credit_account_id = aa.id
                       where aj.company_id={ORIG_COMPANY_ID}
                       and aj.code <> 'STJ'"""
 
