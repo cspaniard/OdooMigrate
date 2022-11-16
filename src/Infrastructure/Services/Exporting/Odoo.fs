@@ -379,6 +379,18 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
+    static member exportProductCategoryTranslation (modelName : string) =
+
+        [
+            [ "id" ; "name" ]
+            [ "product.product_category_all" ; "Todos" ]
+            [ "product.cat_expense" ; "Gastos" ]
+            [ "product.product_category_1" ; "Vendible" ]
+        ]
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
     static member exportProductCategory (modelName : string) =
 
         let header = [ "id" ; "parent_path" ; "name" ; "complete_name"; "parent_id/.id" ; "allow_negative_stock" ]
@@ -394,6 +406,52 @@ type Service () =
                 reader.text "name"
                 reader.text "complete_name"
                 reader.intOrNone "parent_id" |> orEmptyString
+                reader.boolOrNone "allow_negative_stock" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportProductTemplate (modelName : string) =
+
+        let header = [ "id" ; "name" ; "sequence" ; "type"; "categ_id" ; "list_price"
+                       "sale_ok" ; "purchase_ok" ; "active" ; "sale_delay" ; "tracking"
+                       "service_type" ; "sale_line_warn" ; "expense_policy" ; "purchase_method"
+                       "purchase_line_warn_msg" ; "allow_negative_stock"  ]
+
+        let sql = $"""select pt.id, pt.name, pt.sequence, pt.type, pc.complete_name as categ_id, pt.list_price,
+                             pt.sale_ok, pt.purchase_ok, pt.active, pt.sale_delay, pt.tracking,
+                             pt.service_type, pt.sale_line_warn, pt.expense_policy, pt.purchase_method,
+                             pt.purchase_line_warn_msg, pt.allow_negative_stock
+                      from product_template as pt
+                      join product_category as pc on pt.categ_id = pc.id
+                      where pt.company_id = {ORIG_COMPANY_ID}
+                      and pt.active = true
+                      order by pt.id"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> ProductTemplate.exportId
+                reader.text "name"
+                reader.intOrNone "sequence" |> orEmptyString
+                reader.textOrNone "type" |> orEmptyString
+                reader.textOrNone "categ_id" |> orEmptyString
+                (reader.double "list_price").ToString("#####.00")
+
+                reader.bool "sale_ok" |> string
+                reader.bool "purchase_ok" |> string
+                reader.bool "active" |> string
+                (reader.double "sale_delay").ToString("#####")
+                reader.text "tracking"
+
+                reader.textOrNone "service_type" |> orEmptyString
+                reader.textOrNone "sale_line_warn" |> orEmptyString
+                reader.textOrNone "expense_policy" |> orEmptyString
+                reader.textOrNone "purchase_method" |> orEmptyString
+
+                reader.textOrNone "purchase_line_warn_msg" |> orEmptyString
                 reader.boolOrNone "allow_negative_stock" |> orEmptyString
             ]
 

@@ -39,3 +39,6 @@ type AccountProductPriceList = AccountProductPriceList with
 
 type ProductCategory = ProductCategory with
     static member exportId idOption = exportId "product_category" idOption
+
+type ProductTemplate = ProductTemplate with
+    static member exportId idOption = exportId "product_template" idOption

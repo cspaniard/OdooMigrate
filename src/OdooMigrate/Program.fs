@@ -21,7 +21,10 @@ let exportList =
         // ("account_journal", IOdooExportService.exportAccountJournal)
         // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
         // ("product_pricelist", IOdooExportService.exportProductPriceList)
-        ("product_category", IOdooExportService.exportProductCategory)
+        // ("product_category_translation", IOdooExportService.exportProductCategoryTranslation)
+        // ("product_category", IOdooExportService.exportProductCategory)
+        // ("product_template", IOdooExportService.exportProductTemplate)
+        ("product_template_taxes", IOdooExportService.exportProductTemplateTaxes)
     ]
 
 Console.ForegroundColor <- ConsoleColor.Yellow
