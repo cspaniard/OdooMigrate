@@ -24,7 +24,8 @@ let exportList =
         // ("product_category_translation", IOdooExportService.exportProductCategoryTranslation)
         // ("product_category", IOdooExportService.exportProductCategory)
         // ("product_template", IOdooExportService.exportProductTemplate)
-        ("product_template_taxes", IOdooExportService.exportProductTemplateTaxes)
+        // ("product_taxes", IOdooExportService.exportProductTaxes)
+        ("product_supplier_taxes", IOdooExportService.exportProductSupplierTaxes)
     ]
 
 Console.ForegroundColor <- ConsoleColor.Yellow

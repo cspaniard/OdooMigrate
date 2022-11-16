@@ -460,7 +460,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportProductTemplateTaxes (modelName : string) =
+    static member exportProductTaxes (modelName : string) =
 
         let header = [ "id" ; "taxes_id" ]
 
@@ -473,6 +473,29 @@ type Service () =
                       from product_template as pt
                       left join product_taxes_rel as ptr on pt.id = ptr.prod_id
                       left join account_tax as at on ptr.tax_id = at.id
+                      where pt.company_id = {ORIG_COMPANY_ID}
+                      and pt.active = true
+                      order by pt.id"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> ProductTemplate.exportId
+                reader.textOrNone "taxes_id" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportProductSupplierTaxes(modelName : string) =
+
+        let header = [ "id" ; "supplier_taxes_id" ]
+
+        let sql = $"""select pt.id, at.name as taxes_id
+                      from product_template as pt
+                      left join product_supplier_taxes_rel as pstr on pt.id = pstr.prod_id
+                      left join account_tax as at on pstr.tax_id = at.id
                       where pt.company_id = {ORIG_COMPANY_ID}
                       and pt.active = true
                       order by pt.id"""
