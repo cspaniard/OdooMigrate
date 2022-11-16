@@ -1,6 +1,7 @@
 namespace Services.Exporting.Odoo
 
 open System
+open System.Globalization
 open Model
 open Model.Constants
 
@@ -416,13 +417,13 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductTemplate (modelName : string) =
 
-        let header = [ "id" ; "name" ; "sequence" ; "type"; "categ_id" ; "list_price"
+        let header = [ "id" ; "name" ; "default_code" ; "sequence" ; "type"; "categ_id" ; "list_price"
                        "sale_ok" ; "purchase_ok" ; "active" ; "sale_delay" ; "tracking"
                        "service_type" ; "sale_line_warn" ; "expense_policy" ; "purchase_method"
                        "purchase_line_warn_msg" ; "allow_negative_stock"  ]
 
-        let sql = $"""select pt.id, pt.name, pt.sequence, pt.type, pc.complete_name as categ_id, pt.list_price,
-                             pt.sale_ok, pt.purchase_ok, pt.active, pt.sale_delay, pt.tracking,
+        let sql = $"""select pt.id, pt.name, pt.default_code, pt.sequence, pt.type, pc.complete_name as categ_id,
+                             pt.list_price, pt.sale_ok, pt.purchase_ok, pt.active, pt.sale_delay, pt.tracking,
                              pt.service_type, pt.sale_line_warn, pt.expense_policy, pt.purchase_method,
                              pt.purchase_line_warn_msg, pt.allow_negative_stock
                       from product_template as pt
@@ -435,10 +436,11 @@ type Service () =
             [
                 reader.intOrNone "id" |> ProductTemplate.exportId
                 reader.text "name"
+                reader.textOrNone "default_code" |> orEmptyString
                 reader.intOrNone "sequence" |> orEmptyString
                 reader.textOrNone "type" |> orEmptyString
                 reader.textOrNone "categ_id" |> orEmptyString
-                (reader.double "list_price").ToString("#####.00")
+                (reader.double "list_price").ToString("#####.00", CultureInfo.InvariantCulture)
 
                 reader.bool "sale_ok" |> string
                 reader.bool "purchase_ok" |> string
@@ -504,6 +506,32 @@ type Service () =
             [
                 reader.intOrNone "id" |> ProductTemplate.exportId
                 reader.textOrNone "taxes_id" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportProductSupplierInfo(modelName : string) =
+
+        let header = [ "id" ; "name/id" ; "price" ; "date_start" ; "date_end" ; "product_tmpl_id/id" ]
+
+        let sql = $"""select psi.id, psi.name, psi.price, date_start, date_end, psi.product_tmpl_id
+                      from product_supplierinfo as psi
+                      join product_template as pt on psi.product_tmpl_id = pt.id
+                      where psi.company_id = {ORIG_COMPANY_ID}
+                      and pt.active = true
+                      order by psi.product_tmpl_id"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> ProductSupplierInfo.exportId
+                reader.intOrNone "name" |> ResPartner.exportId
+                (reader.double "price").ToString("####.00", CultureInfo.InvariantCulture)
+                reader.dateOnlyOrNone "date_start" |> dateOrEmptyString
+                reader.dateOnlyOrNone "date_end" |> dateOrEmptyString
+                reader.intOrNone "product_tmpl_id" |> ProductTemplate.exportId
             ]
 
         header::ISqlBroker.getExportData sql readerFun

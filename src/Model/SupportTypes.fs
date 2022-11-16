@@ -42,3 +42,6 @@ type ProductCategory = ProductCategory with
 
 type ProductTemplate = ProductTemplate with
     static member exportId idOption = exportId "product_template" idOption
+
+type ProductSupplierInfo = ProductSupplierInfo with
+    static member exportId idOption = exportId "product_supplierinfo" idOption

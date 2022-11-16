@@ -23,9 +23,10 @@ let exportList =
         // ("product_pricelist", IOdooExportService.exportProductPriceList)
         // ("product_category_translation", IOdooExportService.exportProductCategoryTranslation)
         // ("product_category", IOdooExportService.exportProductCategory)
-        // ("product_template", IOdooExportService.exportProductTemplate)
+        ("product_template", IOdooExportService.exportProductTemplate)
         // ("product_taxes", IOdooExportService.exportProductTaxes)
-        ("product_supplier_taxes", IOdooExportService.exportProductSupplierTaxes)
+        // ("product_supplier_taxes", IOdooExportService.exportProductSupplierTaxes)
+        ("product_supplierinfo", IOdooExportService.exportProductSupplierInfo)
     ]
 
 Console.ForegroundColor <- ConsoleColor.Yellow
