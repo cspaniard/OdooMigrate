@@ -458,3 +458,31 @@ type Service () =
         header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportProductTemplateTaxes (modelName : string) =
+
+        let header = [ "id" ; "taxes_id" ]
+
+        let sql = $"""select pt.id,
+                      case when at.name = 'IVA Exento Repercutido'
+                          then 'IVA Exento Repercutido Sujeto'
+                      else at.name
+                      end taxes_id
+
+                      from product_template as pt
+                      left join product_taxes_rel as ptr on pt.id = ptr.prod_id
+                      left join account_tax as at on ptr.tax_id = at.id
+                      where pt.company_id = {ORIG_COMPANY_ID}
+                      and pt.active = true
+                      order by pt.id"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> ProductTemplate.exportId
+                reader.textOrNone "taxes_id" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
