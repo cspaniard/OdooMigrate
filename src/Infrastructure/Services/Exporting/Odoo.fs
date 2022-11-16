@@ -160,6 +160,9 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportResPartner (modelName : string) =
 
+        // Todo: Modos de Pago
+        // Todo: Métodos de Pago
+
         let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
                        "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
                        "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company" ; "partner_share"
@@ -369,7 +372,7 @@ type Service () =
 
         let readerFun (reader : RowReader) =
             [
-                reader.intOrNone "id" |> AccountProductPriceList.exportId
+                reader.intOrNone "id" |> ProductPriceList.exportId
                 reader.text "name"
                 reader.intOrNone "sequence" |> orEmptyString
                 reader.textOrNone "discount_policy" |> orEmptyString
@@ -559,6 +562,49 @@ type Service () =
                 reader.dateOnlyOrNone "date_start" |> dateOrEmptyString
                 reader.dateOnlyOrNone "date_end" |> dateOrEmptyString
                 reader.intOrNone "product_tmpl_id" |> ProductTemplate.exportId
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportProductPriceListItem(modelName : string) =
+
+        let header = [ "id" ; "product_tmpl_id/id" ; "applied_on" ; "base" ; "pricelist_id/id"
+                       "compute_price" ; "fixed_price" ; "percent_price" ]
+
+        let sql = $"""
+            select ppi.id, ppi.product_tmpl_id, ppi.applied_on, ppi.base, ppi.pricelist_id,
+                   ppi.compute_price, ppi.fixed_price, ppi.percent_price, ppi.company_id
+            from product_pricelist_item as ppi
+            where ppi.product_tmpl_id is null
+            union
+            select ppi.id, ppi.product_tmpl_id, ppi.applied_on, ppi.base, ppi.pricelist_id,
+                   ppi.compute_price, ppi.fixed_price, ppi.percent_price, ppi.company_id
+            from product_pricelist_item as ppi
+            left join product_template as pt on ppi.product_tmpl_id = pt.id
+            where pt.active = true
+            order by 2"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> ProductPriceListItem.exportId
+                match reader.intOrNone "product_tmpl_id" with
+                | Some _ as idOption -> "__import__." + (idOption |> ProductTemplate.exportId)
+                | None -> ""
+                reader.text "applied_on"
+                reader.text "base"
+                match reader.intOrNone "pricelist_id" with
+                | Some _ as idOption -> "__import__." + (idOption |> ProductPriceList.exportId)
+                | None -> ""
+                reader.text "compute_price"
+                match reader.doubleOrNone "fixed_price" with
+                | Some price -> price.ToString("###0.00", CultureInfo.InvariantCulture)
+                | None -> ""
+                match reader.doubleOrNone "percent_price" with
+                | Some price -> price.ToString("###0.00", CultureInfo.InvariantCulture)
+                | None -> ""
             ]
 
         header::ISqlBroker.getExportData sql readerFun

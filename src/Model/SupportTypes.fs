@@ -34,7 +34,7 @@ type AccountJournal = AccountJournal with
 type AccountBankingMandate = AccountBankingMandate with
     static member exportId idOption = exportId "account_banking_mandate" idOption
 
-type AccountProductPriceList = AccountProductPriceList with
+type ProductPriceList = AccountProductPriceList with
     static member exportId idOption = exportId "product_pricelist" idOption
 
 type ProductCategory = ProductCategory with
@@ -45,3 +45,6 @@ type ProductTemplate = ProductTemplate with
 
 type ProductSupplierInfo = ProductSupplierInfo with
     static member exportId idOption = exportId "product_supplierinfo" idOption
+
+type ProductPriceListItem = ProductPriceListItem with
+    static member exportId idOption = exportId "product_pricelist_item" idOption
