@@ -417,17 +417,40 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductTemplate (modelName : string) =
 
-        let header = [ "id" ; "name" ; "default_code" ; "sequence" ; "type"; "categ_id" ; "list_price"
+        let header = [ "id" ; "name" ; "default_code" ; "sequence" ; "type" ; "categ_id" ; "list_price"
                        "sale_ok" ; "purchase_ok" ; "active" ; "sale_delay" ; "tracking"
                        "service_type" ; "sale_line_warn" ; "expense_policy" ; "purchase_method"
-                       "purchase_line_warn_msg" ; "allow_negative_stock"  ]
+                       "invoice_policy" ; "purchase_line_warn_msg" ; "allow_negative_stock"
+                       "property_account_income_id" ; "property_account_expense_id" ]
 
-        let sql = $"""select pt.id, pt.name, pt.default_code, pt.sequence, pt.type, pc.complete_name as categ_id,
+        let sql = $"""with
+                      rel_account_income as (
+                          select id, company_id,
+                                 split_part(res_id, ',', 2)::integer as product_template_id,
+                                 split_part(value_reference, ',', 2)::integer as account_id
+                          from ir_property
+                          where name = 'property_account_income_id'
+                          and res_id is not null
+                      ),
+                      rel_account_expense as (
+                          select id, company_id,
+                                 split_part(res_id, ',', 2)::integer as product_template_id,
+                                 split_part(value_reference, ',', 2)::integer as account_id
+                          from ir_property
+                          where name = 'property_account_expense_id'
+                          and res_id is not null
+                      )
+                      select pt.id, pt.name, pt.default_code, pt.sequence, pt.type, pc.complete_name as categ_id,
                              pt.list_price, pt.sale_ok, pt.purchase_ok, pt.active, pt.sale_delay, pt.tracking,
                              pt.service_type, pt.sale_line_warn, pt.expense_policy, pt.purchase_method,
-                             pt.purchase_line_warn_msg, pt.allow_negative_stock
+                             pt.invoice_policy, pt.purchase_line_warn_msg, pt.allow_negative_stock,
+                             aai.code as property_account_income_id, aae.code as property_account_expense_id
                       from product_template as pt
                       join product_category as pc on pt.categ_id = pc.id
+                      join rel_account_income as rai on pt.id = rai.product_template_id
+                      join rel_account_expense as rae on pt.id = rae.product_template_id
+                      join account_account as aai on rai.account_id = aai.id
+                      join account_account as aae on rae.account_id = aae.id
                       where pt.company_id = {ORIG_COMPANY_ID}
                       and pt.active = true
                       order by pt.id"""
@@ -453,8 +476,12 @@ type Service () =
                 reader.textOrNone "expense_policy" |> orEmptyString
                 reader.textOrNone "purchase_method" |> orEmptyString
 
+                reader.textOrNone "invoice_policy" |> orEmptyString
                 reader.textOrNone "purchase_line_warn_msg" |> orEmptyString
                 reader.boolOrNone "allow_negative_stock" |> orEmptyString
+
+                reader.textOrNone "property_account_income_id" |> orEmptyString
+                reader.textOrNone "property_account_expense_id" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
