@@ -8,7 +8,7 @@ module Constants =
 module Helpers =
     let exportId (modelName : string) (idOption : 'a option) =
         match idOption with
-        | Some id -> $"__export__{modelName}_{id}"
+        | Some id -> $"__export__.{modelName}_{id}"
         | None -> ""
 
 open Helpers

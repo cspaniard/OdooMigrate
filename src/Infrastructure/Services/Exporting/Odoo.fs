@@ -360,7 +360,7 @@ type Service () =
                 reader.intOrNone "id" |> AccountBankingMandate.exportId
                 reader.text "format"
                 reader.text "type"
-                "__import__." + (reader.intOrNone "partner_bank_id" |> ResPartnerBank.exportId)
+                reader.intOrNone "partner_bank_id" |> ResPartnerBank.exportId
                 reader.dateOnlyOrNone "signature_date" |> dateOrEmptyString
                 reader.textOrNone "state" |> orEmptyString
                 reader.textOrNone "recurrent_sequence_type" |> orEmptyString
@@ -458,11 +458,11 @@ type Service () =
                              pt.invoice_policy, pt.purchase_line_warn_msg, pt.allow_negative_stock,
                              aai.code as property_account_income_id, aae.code as property_account_expense_id
                       from product_template as pt
-                      join product_category as pc on pt.categ_id = pc.id
-                      join rel_account_income as rai on pt.id = rai.product_template_id
-                      join rel_account_expense as rae on pt.id = rae.product_template_id
-                      join account_account as aai on rai.account_id = aai.id
-                      join account_account as aae on rae.account_id = aae.id
+                      left join product_category as pc on pt.categ_id = pc.id
+                      left join rel_account_income as rai on pt.id = rai.product_template_id
+                      left join rel_account_expense as rae on pt.id = rae.product_template_id
+                      left join account_account as aai on rai.account_id = aai.id
+                      left join account_account as aae on rae.account_id = aae.id
                       where pt.company_id = {ORIG_COMPANY_ID}
                       and pt.active = true
                       order by pt.id"""
@@ -600,12 +600,12 @@ type Service () =
             [
                 reader.intOrNone "id" |> ProductPriceListItem.exportId
                 match reader.intOrNone "product_tmpl_id" with
-                | Some _ as idOption -> "__import__." + (idOption |> ProductTemplate.exportId)
+                | Some _ as idOption -> idOption |> ProductTemplate.exportId
                 | None -> ""
                 reader.text "applied_on"
                 reader.text "base"
                 match reader.intOrNone "pricelist_id" with
-                | Some _ as idOption -> "__import__." + (idOption |> ProductPriceList.exportId)
+                | Some _ as idOption -> idOption |> ProductPriceList.exportId
                 | None -> ""
                 reader.text "compute_price"
                 match reader.doubleOrNone "fixed_price" with
