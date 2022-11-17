@@ -160,7 +160,15 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportResPartner (modelName : string) =
 
-        // Todo: Modos de Pago
+        // Todo: Modos de Pago    customer_payment_mode_id         supplier_payment_mode_id
+
+          // select id, company_id,
+          //        split_part(res_id, ',', 2)::integer as partner_id,
+          //        split_part(value_reference, ',', 2)::integer as payment_mode
+          // from ir_property
+          // where name = 'customer_payment_mode_id'
+          //   and res_id is not null
+
         // Todo: Métodos de Pago
 
         let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
@@ -274,19 +282,20 @@ type Service () =
         let header = [ "id" ; "code" ; "name"; "user_type_id/id"
                        "reconcile" ; "last_visible_year" ]
 
-        let sql = $"""with model_data as (
-                          select name, res_id as id
-                          from ir_model_data
-                          where model = 'account.account.type'
-                      )
-                      select aa.id, aa.code, aa.name, md.name as user_type_id, aa.reconcile, aa.last_visible_year
-                      from account_account as aa
-                      join account_account_type as aat on aa.user_type_id = aat.id
-                      join model_data as md on aa.user_type_id = md.id
-                      where company_id={ORIG_COMPANY_ID}
-                      and aa.create_date > '2019-09-05'
-                      and not (aa.code like '41%%' or aa.code like '43%%')
-                      order by aa.code"""
+        let sql = $"""
+            with model_data as (
+                select name, res_id as id
+                from ir_model_data
+                where model = 'account.account.type'
+            )
+            select aa.id, aa.code, aa.name, md.name as user_type_id, aa.reconcile, aa.last_visible_year
+            from account_account as aa
+            join account_account_type as aat on aa.user_type_id = aat.id
+            join model_data as md on aa.user_type_id = md.id
+            where company_id={ORIG_COMPANY_ID}
+            and aa.create_date > '2019-09-05'
+            and not (aa.code like '41%%' or aa.code like '43%%')
+            order by aa.code"""
 
         let readerFun (reader : RowReader) =
             [
@@ -558,7 +567,7 @@ type Service () =
             [
                 reader.intOrNone "id" |> ProductSupplierInfo.exportId
                 reader.intOrNone "name" |> ResPartner.exportId
-                (reader.double "price").ToString("####.00", CultureInfo.InvariantCulture)
+                (reader.double "price").ToString("###0.00", CultureInfo.InvariantCulture)
                 reader.dateOnlyOrNone "date_start" |> dateOrEmptyString
                 reader.dateOnlyOrNone "date_end" |> dateOrEmptyString
                 reader.intOrNone "product_tmpl_id" |> ProductTemplate.exportId
@@ -605,6 +614,45 @@ type Service () =
                 match reader.doubleOrNone "percent_price" with
                 | Some price -> price.ToString("###0.00", CultureInfo.InvariantCulture)
                 | None -> ""
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportAccountPaymentMethod(modelName : string) =
+
+        let header = [ "id" ; "name" ; "code" ; "payment_type" ; "bank_account_required"
+                       "payment_order_only" ; "mandate_required" ; "pain_version"
+                       "convert_to_ascii" ]
+
+        let sql = """
+            with model_data as (
+                select name, res_id as id, module
+                from ir_model_data
+                where model = 'account.payment.method'
+            )
+            select md.name as id, md.module, apm.name, apm.code, apm.payment_type, apm.bank_account_required,
+                   apm.payment_order_only, apm.mandate_required, apm.pain_version,
+                   apm.convert_to_ascii
+            from account_payment_method as apm
+            join model_data as md on apm.id = md.id
+            where apm.id <> 3"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.text "module" + "." + reader.text "id"
+                reader.textOrNone "name" |> orEmptyString
+                reader.textOrNone "code" |> orEmptyString
+                reader.textOrNone "payment_type" |> orEmptyString
+                reader.boolOrNone "bank_account_required" |> orEmptyString
+
+                reader.boolOrNone "payment_order_only" |> orEmptyString
+                reader.boolOrNone "mandate_required" |> orEmptyString
+                reader.textOrNone "pain_version" |> orEmptyString
+
+                reader.boolOrNone "convert_to_ascii" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
