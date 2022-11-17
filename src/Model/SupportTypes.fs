@@ -48,3 +48,6 @@ type ProductSupplierInfo = ProductSupplierInfo with
 
 type ProductPriceListItem = ProductPriceListItem with
     static member exportId idOption = exportId "product_pricelist_item" idOption
+
+type AccountPaymentMode = AccountPaymentMode with
+    static member exportId idOption = exportId "account_payment_mode" idOption

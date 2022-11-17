@@ -162,15 +162,6 @@ type Service () =
 
         // Todo: Modos de Pago    customer_payment_mode_id         supplier_payment_mode_id
 
-          // select id, company_id,
-          //        split_part(res_id, ',', 2)::integer as partner_id,
-          //        split_part(value_reference, ',', 2)::integer as payment_mode
-          // from ir_property
-          // where name = 'customer_payment_mode_id'
-          //   and res_id is not null
-
-        // Todo: Métodos de Pago
-
         let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
                        "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
                        "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company" ; "partner_share"
@@ -180,51 +171,59 @@ type Service () =
                        "property_account_receivable_id" ; "property_account_payable_id"
                        "property_payment_term_id/id" ]
 
-        let sql = $"""with
-                      rel_payable as (
-                          select id, company_id,
-                                 split_part(res_id, ',', 2)::integer as partner_id,
-                                 split_part(value_reference, ',', 2)::integer as account_id
-                          from ir_property
-                          where name = 'property_account_payable_id'
-                            and res_id is not null
-                      ),
-                      rel_receivable as (
-                          select id, company_id,
-                                 split_part(res_id, ',', 2)::integer as partner_id,
-                                 split_part(value_reference, ',', 2)::integer as account_id
-                          from ir_property
-                          where name = 'property_account_receivable_id'
-                            and res_id is not null
-                      ),
-                      rel_payment_term as (
-                          select id, company_id,
-                                 split_part(res_id, ',', 2)::integer as partner_id,
-                                 split_part(value_reference, ',', 2)::integer as payment_term_id
-                          from ir_property
-                          where name = 'property_payment_term_id'
-                            and res_id is not null
-                      )
-                      select rp.id, rp.name, rp.lang, rp.tz, rp.user_id, rp.parent_id,
-                             rp.vat, rp.website, rp.comment, rp.type, rp.street, rp.street2, rp.zip, rp.city,
-                             rcs.code as state_id, rp.country_id, rp.email, rp.phone, rp.mobile, rp.is_company,
-                             rp.partner_share, rp.commercial_partner_id, rp.commercial_company_name, rp.not_in_mod347,
-                             rp.sale_journal, rp.purchase_journal, rp.aeat_anonymous_cash_customer,
-                             rp.aeat_partner_vat, rp.aeat_partner_name, rp.aeat_data_diff,
-                             acc_rec.code as property_account_receivable_id, acc.code as property_account_payable_id,
-                             apt.id as account_payment_term_id
-                      from res_partner as rp
-                      left join rel_payable as pay on rp.id = pay.partner_id
-                      left join rel_receivable as rec on rp.id = rec.partner_id
-                      left join account_account as acc on pay.account_id = acc.id
-                      left join account_account as acc_rec on rec.account_id = acc_rec.id
-                      left join res_country_state as rcs on rp.state_id = rcs.id
-                      left join rel_payment_term as rp_term on rp.id = rp_term.partner_id
-                      left join account_payment_term as apt on rp_term.payment_term_id = apt.id
-                      where rp.company_id={ORIG_COMPANY_ID}
-                      and rp.active = true
-                      or rp.name ilike 'Deysanka SL'
-                      order by rp.id"""
+          // select id, company_id,
+          //        split_part(res_id, ',', 2)::integer as partner_id,
+          //        split_part(value_reference, ',', 2)::integer as payment_mode
+          // from ir_property
+          // where name = 'customer_payment_mode_id'
+          //   and res_id is not null
+
+        let sql = $"""
+            with
+            rel_payable as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as partner_id,
+                       split_part(value_reference, ',', 2)::integer as account_id
+                from ir_property
+                where name = 'property_account_payable_id'
+                  and res_id is not null
+            ),
+            rel_receivable as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as partner_id,
+                       split_part(value_reference, ',', 2)::integer as account_id
+                from ir_property
+                where name = 'property_account_receivable_id'
+                  and res_id is not null
+            ),
+            rel_payment_term as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as partner_id,
+                       split_part(value_reference, ',', 2)::integer as payment_term_id
+                from ir_property
+                where name = 'property_payment_term_id'
+                  and res_id is not null
+            )
+            select rp.id, rp.name, rp.lang, rp.tz, rp.user_id, rp.parent_id,
+                   rp.vat, rp.website, rp.comment, rp.type, rp.street, rp.street2, rp.zip, rp.city,
+                   rcs.code as state_id, rp.country_id, rp.email, rp.phone, rp.mobile, rp.is_company,
+                   rp.partner_share, rp.commercial_partner_id, rp.commercial_company_name, rp.not_in_mod347,
+                   rp.sale_journal, rp.purchase_journal, rp.aeat_anonymous_cash_customer,
+                   rp.aeat_partner_vat, rp.aeat_partner_name, rp.aeat_data_diff,
+                   acc_rec.code as property_account_receivable_id, acc.code as property_account_payable_id,
+                   apt.id as account_payment_term_id
+            from res_partner as rp
+            left join rel_payable as pay on rp.id = pay.partner_id
+            left join rel_receivable as rec on rp.id = rec.partner_id
+            left join account_account as acc on pay.account_id = acc.id
+            left join account_account as acc_rec on rec.account_id = acc_rec.id
+            left join res_country_state as rcs on rp.state_id = rcs.id
+            left join rel_payment_term as rp_term on rp.id = rp_term.partner_id
+            left join account_payment_term as apt on rp_term.payment_term_id = apt.id
+            where rp.company_id={ORIG_COMPANY_ID}
+            and rp.active = true
+            or rp.name ilike 'Deysanka SL'
+            order by rp.id"""
 
         let readerFun (reader : RowReader) =
             [
@@ -529,7 +528,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportProductSupplierTaxes(modelName : string) =
+    static member exportProductSupplierTaxes (modelName : string) =
 
         let header = [ "id" ; "supplier_taxes_id" ]
 
@@ -552,7 +551,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportProductSupplierInfo(modelName : string) =
+    static member exportProductSupplierInfo (modelName : string) =
 
         let header = [ "id" ; "name/id" ; "price" ; "date_start" ; "date_end" ; "product_tmpl_id/id" ]
 
@@ -578,7 +577,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportProductPriceListItem(modelName : string) =
+    static member exportProductPriceListItem (modelName : string) =
 
         let header = [ "id" ; "product_tmpl_id/id" ; "applied_on" ; "base" ; "pricelist_id/id"
                        "compute_price" ; "fixed_price" ; "percent_price" ]
@@ -621,7 +620,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportAccountPaymentMethod(modelName : string) =
+    static member exportAccountPaymentMethod (modelName : string) =
 
         let header = [ "id" ; "name" ; "code" ; "payment_type" ; "bank_account_required"
                        "payment_order_only" ; "mandate_required" ; "pain_version"
@@ -653,6 +652,71 @@ type Service () =
                 reader.textOrNone "pain_version" |> orEmptyString
 
                 reader.boolOrNone "convert_to_ascii" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportAccountPaymentMode (modelName : string) =
+
+        let exportIdPrefix = AccountJournal.exportId <| Some ""
+
+        let header =
+            [
+                "id" ; "name" ; "bank_account_link" ; "fixed_journal_id/id" ; "payment_method_id/id" ; "payment_type"
+                "payment_method_code" ; "show_bank_account" ; "payment_order_ok" ; "default_payment_mode"
+                "default_invoice" ; "default_target_move" ; "default_date_type" ; "default_date_prefered"
+                "group_lines" ; "generate_move" ; "post_move" ; "move_option" ; "default_journal_ids/id"
+            ]
+
+        let sql = $"""
+            with model_data as (
+                select name, res_id as id, module
+                from ir_model_data
+                where model = 'account.payment.method'
+            ),
+            pm_rel as (
+                select account_payment_mode_id as payment_mode_id,
+                       string_agg('{exportIdPrefix}' || cast(account_journal_id as varchar(100)), ',') as journal_ids
+                from account_journal_account_payment_mode_rel
+                group by account_payment_mode_id
+            )
+            select apm.id, apm.name, apm.bank_account_link, apm.fixed_journal_id,
+                   (md.module || '.' || md.name) as payment_method_id, apm.payment_type,
+                   apm.payment_method_code, apm.show_bank_account, apm.payment_order_ok,
+                   apm.default_payment_mode, apm.default_invoice, apm.default_target_move,
+                   apm.default_date_type, apm.default_date_prefered, apm.group_lines,
+                   apm.generate_move, apm.post_move, apm.move_option, pmr.journal_ids as default_journal_ids
+            from account_payment_mode as apm
+            join model_data as md on apm.payment_method_id = md.id
+            join pm_rel as pmr on apm.payment_method_id = pmr.payment_mode_id"""
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> AccountPaymentMode.exportId
+                reader.text "name"
+                reader.textOrNone "bank_account_link" |> orEmptyString
+                reader.intOrNone "fixed_journal_id" |> AccountJournal.exportId
+                reader.textOrNone "payment_method_id" |> orEmptyString
+                reader.textOrNone "payment_type" |> orEmptyString
+
+                reader.textOrNone "payment_method_code" |> orEmptyString
+                reader.textOrNone "show_bank_account" |> orEmptyString
+                reader.boolOrNone "payment_order_ok" |> orEmptyString
+                reader.textOrNone "default_payment_mode" |> orEmptyString
+
+                reader.boolOrNone "default_invoice" |> orEmptyString
+                reader.textOrNone "default_target_move" |> orEmptyString
+                reader.textOrNone "default_date_type" |> orEmptyString
+                reader.textOrNone "default_date_prefered" |> orEmptyString
+
+                reader.boolOrNone "group_lines" |> orEmptyString
+                reader.boolOrNone "generate_move" |> orEmptyString
+                reader.boolOrNone "post_move" |> orEmptyString
+                reader.textOrNone "move_option" |> orEmptyString
+                reader.textOrNone "default_journal_ids" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
