@@ -160,8 +160,6 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportResPartner (modelName : string) =
 
-        // Todo: Modos de Pago    customer_payment_mode_id         supplier_payment_mode_id
-
         let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
                        "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
                        "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company" ; "partner_share"
@@ -169,14 +167,7 @@ type Service () =
                        "sale_journal_id/id" ; "purchase_journal_id/id" ; "aeat_anonymous_cash_customer"
                        "aeat_partner_vat" ; "aeat_partner_name" ; "aeat_data_diff"
                        "property_account_receivable_id" ; "property_account_payable_id"
-                       "property_payment_term_id/id" ]
-
-          // select id, company_id,
-          //        split_part(res_id, ',', 2)::integer as partner_id,
-          //        split_part(value_reference, ',', 2)::integer as payment_mode
-          // from ir_property
-          // where name = 'customer_payment_mode_id'
-          //   and res_id is not null
+                       "property_payment_term_id/id" ; "customer_payment_mode_id/id" ; "supplier_payment_mode_id/id" ]
 
         let sql = $"""
             with
@@ -186,7 +177,7 @@ type Service () =
                        split_part(value_reference, ',', 2)::integer as account_id
                 from ir_property
                 where name = 'property_account_payable_id'
-                  and res_id is not null
+                and res_id is not null
             ),
             rel_receivable as (
                 select id, company_id,
@@ -194,7 +185,7 @@ type Service () =
                        split_part(value_reference, ',', 2)::integer as account_id
                 from ir_property
                 where name = 'property_account_receivable_id'
-                  and res_id is not null
+                and res_id is not null
             ),
             rel_payment_term as (
                 select id, company_id,
@@ -202,7 +193,23 @@ type Service () =
                        split_part(value_reference, ',', 2)::integer as payment_term_id
                 from ir_property
                 where name = 'property_payment_term_id'
-                  and res_id is not null
+                and res_id is not null
+            ),
+            rel_customer_payment_mode as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as partner_id,
+                       split_part(value_reference, ',', 2)::integer as payment_mode_id
+                from ir_property
+                where name = 'customer_payment_mode_id'
+                and res_id is not null
+            ),
+            rel_supplier_payment_mode_id as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as partner_id,
+                       split_part(value_reference, ',', 2)::integer as payment_mode_id
+                from ir_property
+                where name = 'supplier_payment_mode_id'
+                and res_id is not null
             )
             select rp.id, rp.name, rp.lang, rp.tz, rp.user_id, rp.parent_id,
                    rp.vat, rp.website, rp.comment, rp.type, rp.street, rp.street2, rp.zip, rp.city,
@@ -211,7 +218,8 @@ type Service () =
                    rp.sale_journal, rp.purchase_journal, rp.aeat_anonymous_cash_customer,
                    rp.aeat_partner_vat, rp.aeat_partner_name, rp.aeat_data_diff,
                    acc_rec.code as property_account_receivable_id, acc.code as property_account_payable_id,
-                   apt.id as account_payment_term_id
+                   apt.id as account_payment_term_id, rcpm.payment_mode_id as customer_payment_mode_id,
+                   rspm.payment_mode_id as supplier_payment_mode_id
             from res_partner as rp
             left join rel_payable as pay on rp.id = pay.partner_id
             left join rel_receivable as rec on rp.id = rec.partner_id
@@ -220,7 +228,9 @@ type Service () =
             left join res_country_state as rcs on rp.state_id = rcs.id
             left join rel_payment_term as rp_term on rp.id = rp_term.partner_id
             left join account_payment_term as apt on rp_term.payment_term_id = apt.id
-            where rp.company_id={ORIG_COMPANY_ID}
+            left join rel_customer_payment_mode as rcpm on rp.id = rcpm.partner_id
+            left join rel_supplier_payment_mode_id as rspm on rp.id = rspm.partner_id
+            where rp.company_id = {ORIG_COMPANY_ID}
             and rp.active = true
             or rp.name ilike 'Deysanka SL'
             order by rp.id"""
@@ -268,7 +278,9 @@ type Service () =
                 reader.textOrNone "property_account_receivable_id" |> Option.defaultValue "430000"
                 reader.textOrNone "property_account_payable_id" |> orEmptyString
 
-                (reader.intOrNone "account_payment_term_id" |> AccountPaymentTerm.exportId)
+                reader.intOrNone "account_payment_term_id" |> AccountPaymentTerm.exportId
+                reader.intOrNone "customer_payment_mode_id" |> AccountPaymentMode.exportId
+                reader.intOrNone "supplier_payment_mode_id" |> AccountPaymentMode.exportId
             ]
 
         header::ISqlBroker.getExportData sql readerFun
