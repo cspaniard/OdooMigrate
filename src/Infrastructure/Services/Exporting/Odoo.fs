@@ -734,3 +734,102 @@ type Service () =
         header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportAccountOpeningMove (modelName : string) =
+
+        // TODO: Investigar Herbodis 17288;"400000";408;141.65;0.00;"FV21-1061 - PROV/2021/00042";"C"
+        //       Fras Rectificativas
+
+        let header =
+            [
+                "id" ; "date" ; "name" ; "partner_id" ; "ref" ; "journal_id" ; "line_ids/id" ; "line_ids/account_id"
+                "line_ids/partner_id/id" ; "line_ids/name" ; "line_ids/debit" ; "line_ids/credit"
+            ]
+
+        let moveInfo =
+            [
+                Some "dey" |> AccountOpeningMove.exportId
+                "2023-01-01"
+                "/"
+                ""
+                "Asiento Apertura Deysanka"
+                "Operaciones varias"
+            ]
+
+        let sql = $"""
+            select aml.id, aa.code as account_id, aml.partner_id, aml.debit as amount,
+                   aml.debit - sum(apr.amount) as residual, aml.ref, 'D' as move_type
+            from account_move_line as aml
+            left join account_partial_reconcile as apr on aml.id = apr.debit_move_id
+            join account_account as aa on aml.account_id = aa.id
+            where aml.full_reconcile_id is null
+            and aml.balance <> 0.0
+            and aa.code in ('430000', '430100')
+            and aml.credit <= 0.0
+            group by aml.id, aa.code
+            union all
+            select aml.id, aa.code as account_id, aml.partner_id, aml.credit as amount,
+                   aml.credit - sum(apr.amount) as residual, aml.ref, 'C' as move_type
+            from account_move_line as aml
+            left join account_partial_reconcile as apr on aml.id = apr.credit_move_id
+            join account_account as aa on aml.account_id = aa.id
+            where aml.full_reconcile_id is null
+            and aml.balance <> 0.0
+            and aa.code in ('400000', '410000', '411000')
+            and aml.credit > 0.0
+            group by aml.id, aa.code
+            order by account_id"""
+
+        let moveLinesReadFun (reader : RowReader) =
+            [
+                ""
+                reader.intOrNone "id" |> AccountMoveLine.exportId
+                reader.text "account_id"
+                reader.intOrNone "partner_id" |> ResPartner.exportId
+
+                reader.textOrNone "ref" |> orEmptyString
+
+                if reader.text "move_type" = "C" then ""
+
+                match reader.doubleOrNone "residual" with
+                | Some residual -> residual.ToString("########0.00", CultureInfo.InvariantCulture)
+                | None -> (reader.double "amount").ToString("########0.00", CultureInfo.InvariantCulture)
+            ]
+
+        let moveLinesInfo = ISqlBroker.getExportData sql moveLinesReadFun
+
+        let totalDebit = moveLinesInfo
+                         |> List.filter (fun x -> x.Length = 6)
+                         |> List.sumBy (fun x -> match (x |> List.item 5) with
+                                                 | "" -> 0.0
+                                                 | amount -> amount |> double)
+
+        let totalCredit = moveLinesInfo
+                          |> List.filter (fun x -> x.Length = 7)
+                          |> List.sumBy (fun x -> match (x |> List.item 6) with
+                                                  | "" -> 0.0
+                                                  | amount -> amount |> double)
+
+        let total129 = totalDebit - totalCredit
+
+        let joinData = [
+            (moveInfo, moveLinesInfo)
+        ]
+
+        let tmp129 = [
+            ""
+            ""
+            ""
+            ""
+            ""
+            ""
+            ""
+            "129000"
+            ""
+            ""
+            if total129 > 0.0 then ""
+            abs(total129).ToString("########0.00", CultureInfo.InvariantCulture)
+        ]
+        (header::(flattenData joinData)) @ [tmp129]
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"

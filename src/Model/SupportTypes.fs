@@ -51,3 +51,9 @@ type ProductPriceListItem = ProductPriceListItem with
 
 type AccountPaymentMode = AccountPaymentMode with
     static member exportId idOption = exportId "account_payment_mode" idOption
+
+type AccountOpeningMove = AccountOpeningMove with
+    static member exportId idOption = exportId "account_opening_move" idOption
+
+type AccountMoveLine = AccountMoveLine with
+    static member exportId idOption = exportId "account_move_line" idOption
