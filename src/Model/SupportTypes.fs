@@ -6,7 +6,9 @@ module Constants =
     let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_gestion1; Username=dsanroma; Password=pepe;"
 
 module Helpers =
+
     let exportId (modelName : string) (idOption : 'a option) =
+
         match idOption with
         | Some id -> $"__export__.{modelName}_{id}"
         | None -> ""
