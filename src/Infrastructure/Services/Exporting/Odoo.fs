@@ -11,6 +11,11 @@ type IExcelBroker = DI.Brokers.StorageDI.IExcelBroker
 type Service () =
 
     //------------------------------------------------------------------------------------------------------------------
+    static let [<Literal>] COL_DEBIT = 9
+    static let [<Literal>] COL_CREDIT = 10
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
     static let formatDecimal (value : double) =
         value.ToString("########0.00", CultureInfo.InvariantCulture)
     //------------------------------------------------------------------------------------------------------------------
@@ -746,6 +751,7 @@ type Service () =
         // TODO: Investigar Herbodis 17288;"400000";408;141.65;0.00;"FV21-1061 - PROV/2021/00042";"C"
         //       Fras Rectificativas
 
+        //--------------------------------------------------------------------------------------------------------------
         let header =
             [
                 "id" ; "date" ; "name" ; "partner_id" ; "ref" ; "journal_id" ; "line_ids/account_id"
@@ -761,26 +767,77 @@ type Service () =
                 "Asiento Apertura Deysanka"
                 "Operaciones varias"
             ]
+        //--------------------------------------------------------------------------------------------------------------
 
-        let otherAccountsSql =
+        //--------------------------------------------------------------------------------------------------------------
+        let detailsWithBalanceSql =
             """
-            with account_totals as (
-                select distinct aa.code, aa.name, round(sum(aml.debit), 2) as debit,
-                       round(sum(aml.credit), 2) as credit
+            with
+            account_list as (
+                values ('180000'), ('260000')
+            ),
+            active_partners as (
+                select aml.partner_id
+                from account_move_line as aml
+                join account_account as aa on aml.account_id = aa.id
+                where aa.code in (select * from account_list)
+                group by aa.code, aml.partner_id
+                having round(sum(aml.debit) - sum(aml.credit), 2) <> 0.0
+            )
+            select aa.id, aa.code as account_id, aml.partner_id, rp.name, aml.ref, round(aml.debit, 2) as debit,
+                   round(aml.credit, 2) as credit, round(aml.debit - aml.credit, 2) as balance
+            from account_move_line as aml
+            join account_account as aa on aml.account_id = aa.id
+            join res_partner as rp on aml.partner_id = rp.id
+            where aml.partner_id in (select partner_id from active_partners)
+            and aa.code in (select * from account_list)
+            order by aa.code, aml.partner_id
+            """
+
+        let detailsWithBalanceReaderFun (reader : RowReader) =
+            [
+                ""
+                ""
+                ""
+                ""
+                ""
+                ""
+                reader.text "account_id"
+                reader.intOrNone "partner_id" |> ResPartner.exportId
+                reader.textOrNone "ref" |> orEmptyString
+                reader.double "debit" |> formatDecimal
+                reader.double "credit" |> formatDecimal
+            ]
+        //--------------------------------------------------------------------------------------------------------------
+
+        //--------------------------------------------------------------------------------------------------------------
+        let totalsBalanceSql =
+            """
+            with
+            account_totals as (
+                select distinct aa.code, aa.name, 0 as partner_id, '' as ref, round(sum(aml.debit), 2) as debit,
+                                round(sum(aml.credit), 2) as credit
                 from account_move_line as aml
                 join account_account as aa on aml.account_id = aa.id
                 where aml.company_id = 2
                 group by aa.code, aa.name
             )
-            select at.code as account_id, at.debit, at.credit, round(debit - credit, 2) as balance
+            select at.code as account_id, at.name, at.partner_id, at.ref, at.debit, at.credit,
+                   round(debit - credit, 2) as balance
             from account_totals as at
             where round(debit - credit, 2) <> 0.0
-            and at.code similar to '(1|2|3|4|5)%'
-            and at.code not in ('400000', '410000', '411000', '430000', '430100')
-            order by at.code
+            and at.code similar to '(10|11|12)%'
+            or at.code in ('211001', '211002', '211003', '211005', '211006', '211007',
+                           '212000', '213001', '214000', '214001', '217000', '218002',
+                           '260001', '280000', '300000')
+            or at.code like '21500%'
+            or at.code like '21600%'
+            or at.code like '281%'
+            --and at.code not in ('400000', '410000', '411000', '430000', '430100', '180000', '260000', '430150')
+            order by 1
             """
 
-        let otherAccountsReadFun (reader : RowReader) =
+        let totalsBalanceReaderFun (reader : RowReader) =
             [
                 ""
                 ""
@@ -801,12 +858,16 @@ type Service () =
 
                 if balance > 0.0 then "0.0"
             ]
+        //--------------------------------------------------------------------------------------------------------------
 
-        let otherAccountData = ISqlBroker.getExportData otherAccountsSql otherAccountsReadFun
-
-        let sql =
+        //--------------------------------------------------------------------------------------------------------------
+        let pendingMoveLinesSql =
             """
-            with lines_data as (
+            with
+            account_list as (
+                values ('171000'), ('206000'), ('210002'), ('210003'), ('400000'), ('410000')
+            ),
+            lines_data as (
                 select aml.id, aa.code as account_id, aml.partner_id, aml.credit as amount,
                        aml.credit - sum(apr.amount) as residual, aml.ref, 'C' as move_type
                 from account_move_line as aml
@@ -814,7 +875,7 @@ type Service () =
                 join account_account as aa on aml.account_id = aa.id
                 where aml.full_reconcile_id is null
                 and aml.balance <> 0.0
-                and aa.code in ('400000', '410000', '411000')
+                and aa.code in (select * from account_list)
                 and aml.credit > 0.0
                 group by aml.id, aa.code
             )
@@ -825,9 +886,10 @@ type Service () =
             join account_account as aa on aml.account_id = aa.id
             where aml.full_reconcile_id is null
             and aml.balance <> 0.0
-            and aa.code in ('430000', '430100')
+            and aa.code in (select * from account_list)
             and aml.credit <= 0.0
             group by aml.id, aa.code
+            --having aml.debit - sum(apr.amount) <> 0.0
             union all
             select *
             from lines_data
@@ -835,42 +897,52 @@ type Service () =
             order by account_id
             """
 
-        let moveLinesReadFun (reader : RowReader) =
-            [
-                ""
-                reader.text "account_id"
-                reader.intOrNone "partner_id" |> ResPartner.exportId
+        let pendingMoveLinesReaderFun (reader : RowReader) =
 
-                reader.textOrNone "ref" |> orEmptyString
-
-                if reader.text "move_type" = "C" then ""
+            let shouldGenerateRow () =
 
                 match reader.doubleOrNone "residual" with
-                | Some residual -> residual |> formatDecimal
-                | None -> (reader.double "amount") |> formatDecimal
+                | Some residual -> not (residual = 0.0)
+                | None -> true
+
+            [
+                if shouldGenerateRow() then
+                    ""
+                    reader.text "account_id"
+                    reader.intOrNone "partner_id" |> ResPartner.exportId
+
+                    reader.textOrNone "ref" |> orEmptyString
+
+                    if reader.text "move_type" = "C" then 0.0 |> formatDecimal
+
+                    match reader.doubleOrNone "residual" with
+                    | Some residual -> residual |> formatDecimal
+                    | None -> (reader.double "amount") |> formatDecimal
+
+                    if reader.text "move_type" = "D" then 0.0 |> formatDecimal
             ]
+        //--------------------------------------------------------------------------------------------------------------
 
-        let moveLinesInfo = ISqlBroker.getExportData sql moveLinesReadFun
+        //--------------------------------------------------------------------------------------------------------------
+        let detailsWithBalanceData = ISqlBroker.getExportData detailsWithBalanceSql detailsWithBalanceReaderFun
 
-        let mutable totalDebit = moveLinesInfo
-                                 |> List.filter (fun x -> x.Length = 5)
-                                 |> List.sumBy (fun x -> match (x |> List.item 4) with
-                                                         | "" -> 0.0
-                                                         | amount -> amount |> double)
+        let totalsBalanceData = ISqlBroker.getExportData totalsBalanceSql totalsBalanceReaderFun
 
-        let mutable totalCredit = moveLinesInfo
-                                  |> List.filter (fun x -> x.Length = 6)
-                                  |> List.sumBy (fun x -> match (x |> List.item 5) with
-                                                          | "" -> 0.0
-                                                          | amount -> amount |> double)
+        let pendigMoveLinesData = ISqlBroker.getExportData pendingMoveLinesSql pendingMoveLinesReaderFun
+                                  |> List.filter (fun x -> not x.IsEmpty)
+        //--------------------------------------------------------------------------------------------------------------
 
-        totalDebit <- totalDebit + (otherAccountData |> List.sumBy (fun x -> x[9] |> double))
-        totalCredit <- totalCredit + (otherAccountData |> List.sumBy (fun x -> x[10] |> double))
+        let allData = (flattenData [(moveInfo, pendigMoveLinesData)])
+                      @ detailsWithBalanceData
+                      @ totalsBalanceData
+
+        let totalDebit = allData
+                         |> List.sumBy (fun x -> x[COL_DEBIT] |> double)
+
+        let totalCredit = allData
+                          |> List.sumBy (fun x -> x[COL_CREDIT] |> double)
+
         let total129 = totalDebit - totalCredit
-
-        let joinData = [
-            (moveInfo, moveLinesInfo)
-        ]
 
         let tmp129 = [
             ""
@@ -881,9 +953,11 @@ type Service () =
             ""
             "129000"
             ""
-            ""
-            if total129 > 0.0 then ""
+            "Descuadre provisional"
+            if total129 > 0.0 then 0.0 |> formatDecimal
             total129 |> abs |> formatDecimal
+            if total129 < 0.0 then 0.0 |> formatDecimal
         ]
-        (header::(flattenData joinData)) @ otherAccountData @ [tmp129]
+
+        (header::allData) @ [tmp129]
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
