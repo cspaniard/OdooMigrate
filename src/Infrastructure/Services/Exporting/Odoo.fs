@@ -771,20 +771,19 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
 
         //--------------------------------------------------------------------------------------------------------------
-        let detailsWithBalanceSql =
-            """
+        let detailsWithBalanceSql = """
             with
-            account_list as (
-                values ('180000'), ('260000')
-            ),
-            active_partners as (
-                select aml.partner_id
-                from account_move_line as aml
-                join account_account as aa on aml.account_id = aa.id
-                where aa.code in (select * from account_list)
-                group by aa.code, aml.partner_id
-                having round(sum(aml.debit) - sum(aml.credit), 2) <> 0.0
-            )
+                account_list as (values
+                    ('180000'), ('260000')
+                ),
+                active_partners as (
+                    select aml.partner_id
+                    from account_move_line as aml
+                    join account_account as aa on aml.account_id = aa.id
+                    where aa.code in (select * from account_list)
+                    group by aa.code, aml.partner_id
+                    having round(sum(aml.debit) - sum(aml.credit), 2) <> 0.0
+                )
             select aa.id, aa.code as account_id, aml.partner_id, rp.name, aml.ref, round(aml.debit, 2) as debit,
                    round(aml.credit, 2) as credit, round(aml.debit - aml.credit, 2) as balance
             from account_move_line as aml
@@ -807,17 +806,16 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
 
         //--------------------------------------------------------------------------------------------------------------
-        let totalsBalanceSql =
-            """
+        let totalsBalanceSql = """
             with
-            account_totals as (
-                select distinct aa.code, aa.name, 0 as partner_id, '' as ref, round(sum(aml.debit), 2) as debit,
-                                round(sum(aml.credit), 2) as credit
-                from account_move_line as aml
-                join account_account as aa on aml.account_id = aa.id
-                where aml.company_id = 2
-                group by aa.code, aa.name
-            )
+                account_totals as (
+                    select distinct aa.code, aa.name, 0 as partner_id, '' as ref, round(sum(aml.debit), 2) as debit,
+                                    round(sum(aml.credit), 2) as credit
+                    from account_move_line as aml
+                    join account_account as aa on aml.account_id = aa.id
+                    where aml.company_id = 2
+                    group by aa.code, aa.name
+                )
             select at.code as account_id, at.name, at.partner_id, at.ref, at.debit, at.credit,
                    round(debit - credit, 2) as balance
             from account_totals as at
@@ -830,7 +828,6 @@ type Service () =
             or at.code like '21500%'
             or at.code like '21600%'
             or at.code like '281%'
-            --and at.code not in ('400000', '410000', '411000', '430000', '430100', '180000', '260000', '430150')
             order by 1
             """
 
@@ -853,27 +850,26 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
 
         //--------------------------------------------------------------------------------------------------------------
-        let pendingMoveLinesSql =
-            """
+        let pendingMoveLinesSql = """
             with
-            account_list as (
-                values ('171000'), ('180000'), ('260000'), ('400000'), ('410000'), ('411000'), ('430000'),
-                       ('430100'), ('430150'),
-                       ('431500'), ('436000'), ('440000'), ('460000'), ('465000'), ('470900'), ('471000'),
-                       ('474500'), ('475000'), ('475100'), ('476000'), ('476001'), ('476002')
-            ),
-            lines_data as (
-                select aml.id, aa.code as account_id, aml.partner_id, aml.credit as amount,
-                       aml.credit - sum(apr.amount) as residual, aml.ref, 'C' as move_type
-                from account_move_line as aml
-                left join account_partial_reconcile as apr on aml.id = apr.credit_move_id
-                join account_account as aa on aml.account_id = aa.id
-                where aml.full_reconcile_id is null
-                and aml.balance <> 0.0
-                and aa.code in (select * from account_list)
-                and aml.credit > 0.0
-                group by aml.id, aa.code
-            )
+                account_list as (values
+                    ('171000'), ('180000'), ('260000'), ('400000'), ('410000'), ('411000'), ('430000'),
+                    ('430100'), ('430150'),
+                    ('431500'), ('436000'), ('440000'), ('460000'), ('465000'), ('470900'), ('471000'),
+                    ('474500'), ('475000'), ('475100'), ('476000'), ('476001'), ('476002')
+                ),
+                lines_data as (
+                    select aml.id, aa.code as account_id, aml.partner_id, aml.credit as amount,
+                           aml.credit - sum(apr.amount) as residual, aml.ref, 'C' as move_type
+                    from account_move_line as aml
+                    left join account_partial_reconcile as apr on aml.id = apr.credit_move_id
+                    join account_account as aa on aml.account_id = aa.id
+                    where aml.full_reconcile_id is null
+                    and aml.balance <> 0.0
+                    and aa.code in (select * from account_list)
+                    and aml.credit > 0.0
+                    group by aml.id, aa.code
+                )
             select aml.id, aa.code as account_id, aml.partner_id, aml.debit as amount,
                    aml.debit - sum(apr.amount) as residual, aml.ref, 'D' as move_type
             from account_move_line as aml
@@ -924,17 +920,17 @@ type Service () =
         let totalsBalanceData = ISqlBroker.getExportData totalsBalanceSql totalsBalanceReaderFun
 
         let pendigMoveLinesData = ISqlBroker.getExportData pendingMoveLinesSql pendingMoveLinesReaderFun
-                                  |> List.filter (fun x -> not x.IsEmpty)
+                                  |> List.filter (fun ml -> not ml.IsEmpty)
         //--------------------------------------------------------------------------------------------------------------
 
         let allMoveLinesData = (pendigMoveLinesData @ totalsBalanceData)
-                               |> List.sortBy (fun x -> x[COL_ACCOUNT])
+                               |> List.sortBy (fun ml -> ml[COL_ACCOUNT])
 
         let totalDebit = allMoveLinesData
-                         |> List.sumBy (fun x -> x[COL_DEBIT] |> double)
+                         |> List.sumBy (fun ml -> ml[COL_DEBIT] |> double)
 
         let totalCredit = allMoveLinesData
-                          |> List.sumBy (fun x -> x[COL_CREDIT] |> double)
+                          |> List.sumBy (fun ml -> ml[COL_CREDIT] |> double)
 
         let total129 = totalDebit - totalCredit
 
