@@ -827,7 +827,8 @@ type Service () =
             from account_totals as at
             where round(debit - credit, 2) <> 0.0
             and at.code similar to '(10|11|12)%'
-            or at.code in ('211001', '211002', '211003', '211005', '211006', '211007',
+            or at.code in ('206000', '210002', '210003', '211001', '211002', '211003',
+                           '211005', '211006', '211007',
                            '212000', '213001', '214000', '214001', '217000', '218002',
                            '260001', '280000', '300000')
             or at.code like '21500%'
@@ -865,7 +866,10 @@ type Service () =
             """
             with
             account_list as (
-                values ('171000'), ('206000'), ('210002'), ('210003'), ('400000'), ('410000')
+                values ('171000'), ('180000'), ('260000'), ('400000'), ('410000'), ('411000'), ('430000'),
+                       ('430100'), ('430150'),
+                       ('431500'), ('436000'), ('440000'), ('460000'), ('465000'), ('470900'), ('471000'),
+                       ('474500'), ('475000'), ('475100'), ('476000'), ('476001'), ('476002')
             ),
             lines_data as (
                 select aml.id, aa.code as account_id, aml.partner_id, aml.credit as amount,
@@ -933,7 +937,7 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
 
         let allData = (flattenData [(moveInfo, pendigMoveLinesData)])
-                      @ detailsWithBalanceData
+                      // @ detailsWithBalanceData
                       @ totalsBalanceData
 
         let totalDebit = allData
