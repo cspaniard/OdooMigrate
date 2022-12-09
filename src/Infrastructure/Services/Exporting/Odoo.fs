@@ -11,8 +11,9 @@ type IExcelBroker = DI.Brokers.StorageDI.IExcelBroker
 type Service () =
 
     //------------------------------------------------------------------------------------------------------------------
-    static let [<Literal>] COL_DEBIT = 9
-    static let [<Literal>] COL_CREDIT = 10
+    static let [<Literal>] COL_ACCOUNT = 1
+    static let [<Literal>] COL_DEBIT = 4
+    static let [<Literal>] COL_CREDIT = 5
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
@@ -797,11 +798,6 @@ type Service () =
         let detailsWithBalanceReaderFun (reader : RowReader) =
             [
                 ""
-                ""
-                ""
-                ""
-                ""
-                ""
                 reader.text "account_id"
                 reader.intOrNone "partner_id" |> ResPartner.exportId
                 reader.textOrNone "ref" |> orEmptyString
@@ -840,11 +836,6 @@ type Service () =
 
         let totalsBalanceReaderFun (reader : RowReader) =
             [
-                ""
-                ""
-                ""
-                ""
-                ""
                 ""
                 reader.text "account_id"
                 ""   // Partner_id
@@ -936,14 +927,13 @@ type Service () =
                                   |> List.filter (fun x -> not x.IsEmpty)
         //--------------------------------------------------------------------------------------------------------------
 
-        let allData = (flattenData [(moveInfo, pendigMoveLinesData)])
-                      // @ detailsWithBalanceData
-                      @ totalsBalanceData
+        let allMoveLinesData = (pendigMoveLinesData @ totalsBalanceData)
+                               |> List.sortBy (fun x -> x[COL_ACCOUNT])
 
-        let totalDebit = allData
+        let totalDebit = allMoveLinesData
                          |> List.sumBy (fun x -> x[COL_DEBIT] |> double)
 
-        let totalCredit = allData
+        let totalCredit = allMoveLinesData
                           |> List.sumBy (fun x -> x[COL_CREDIT] |> double)
 
         let total129 = totalDebit - totalCredit
@@ -963,5 +953,8 @@ type Service () =
             if total129 < 0.0 then 0.0 |> formatDecimal
         ]
 
-        (header::allData) @ [tmp129]
+        let allMoveData = (flattenData [(moveInfo, allMoveLinesData)])
+                          @ [tmp129]
+
+        (header::allMoveData)
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
