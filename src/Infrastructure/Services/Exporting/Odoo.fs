@@ -824,7 +824,9 @@ type Service () =
             or at.code in ('206000', '210002', '210003', '211001', '211002', '211003',
                            '211005', '211006', '211007',
                            '212000', '213001', '214000', '214001', '217000', '218002',
-                           '260001', '280000', '300000')
+                           '260001', '280000', '300000', '548002', '548003', '551001',
+                           '551018', '551019', '551020', '551022',
+                           '570001', '570002', '572001', '572012')
             or at.code like '21500%'
             or at.code like '21600%'
             or at.code like '281%'
@@ -833,19 +835,21 @@ type Service () =
 
         let totalsBalanceReaderFun (reader : RowReader) =
             [
-                ""
-                reader.text "account_id"
-                ""   // Partner_id
-
-                "Asiento Apertura 2023"   // ref
-
                 let balance = reader.double "balance"
 
-                if balance < 0.0 then "0.0"
+                if balance <> 0.0 then
+                    ""
+                    reader.text "account_id"
+                    ""   // Partner_id
 
-                balance |> abs |> formatDecimal
+                    "Asiento Apertura 2023"   // ref
 
-                if balance > 0.0 then "0.0"
+
+                    if balance < 0.0 then "0.0"
+
+                    balance |> abs |> formatDecimal
+
+                    if balance > 0.0 then "0.0"
             ]
         //--------------------------------------------------------------------------------------------------------------
 
@@ -853,7 +857,7 @@ type Service () =
         let pendingMoveLinesSql = """
             with
                 account_list as (values
-                    ('171000'), ('180000'), ('260000'), ('400000'), ('410000'), ('411000'), ('430000'),
+                    ('171000'), ('400000'), ('410000'), ('411000'), ('430000'),
                     ('430100'), ('430150'),
                     ('431500'), ('436000'), ('440000'), ('460000'), ('465000'), ('470900'), ('471000'),
                     ('474500'), ('475000'), ('475100'), ('476000'), ('476001'), ('476002')
@@ -918,12 +922,15 @@ type Service () =
         let detailsWithBalanceData = ISqlBroker.getExportData detailsWithBalanceSql detailsWithBalanceReaderFun
 
         let totalsBalanceData = ISqlBroker.getExportData totalsBalanceSql totalsBalanceReaderFun
+                                |> List.filter (fun ml -> not ml.IsEmpty)
 
         let pendigMoveLinesData = ISqlBroker.getExportData pendingMoveLinesSql pendingMoveLinesReaderFun
                                   |> List.filter (fun ml -> not ml.IsEmpty)
         //--------------------------------------------------------------------------------------------------------------
 
-        let allMoveLinesData = (pendigMoveLinesData @ totalsBalanceData)
+        let allMoveLinesData = (pendigMoveLinesData @
+                                totalsBalanceData @
+                                detailsWithBalanceData)
                                |> List.sortBy (fun ml -> ml[COL_ACCOUNT])
 
         let totalDebit = allMoveLinesData
@@ -935,18 +942,19 @@ type Service () =
         let total129 = totalDebit - totalCredit
 
         let tmp129 = [
-            ""
-            ""
-            ""
-            ""
-            ""
-            ""
-            "129000"
-            ""
-            "Descuadre provisional"
-            if total129 > 0.0 then 0.0 |> formatDecimal
-            total129 |> abs |> formatDecimal
-            if total129 < 0.0 then 0.0 |> formatDecimal
+            if total129 <> 0.0 then
+                ""
+                ""
+                ""
+                ""
+                ""
+                ""
+                "129000"
+                ""
+                "Descuadre provisional"
+                if total129 > 0.0 then 0.0 |> formatDecimal
+                total129 |> abs |> formatDecimal
+                if total129 < 0.0 then 0.0 |> formatDecimal
         ]
 
         let allMoveData = (flattenData [(moveInfo, allMoveLinesData)])
