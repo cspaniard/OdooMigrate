@@ -177,7 +177,8 @@ type Service () =
                        "sale_journal_id/id" ; "purchase_journal_id/id" ; "aeat_anonymous_cash_customer"
                        "aeat_partner_vat" ; "aeat_partner_name" ; "aeat_data_diff"
                        "property_account_receivable_id" ; "property_account_payable_id"
-                       "property_payment_term_id/id" ; "customer_payment_mode_id/id" ; "supplier_payment_mode_id/id" ]
+                       "property_payment_term_id/id" ; "customer_payment_mode_id/id" ; "supplier_payment_mode_id/id"
+                       "property_product_pricelist/id" ]
 
         let sql = $"""
             with
@@ -220,6 +221,14 @@ type Service () =
                 from ir_property
                 where name = 'supplier_payment_mode_id'
                 and res_id is not null
+            ),
+            rel_product_pricelist as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as partner_id,
+                       split_part(value_reference, ',', 2)::integer as product_pricelist
+                from ir_property
+                where name = 'property_product_pricelist'
+                and res_id is not null
             )
             select rp.id, rp.name, rp.lang, rp.tz, rp.user_id, rp.parent_id,
                    rp.vat, rp.website, rp.comment, rp.type, rp.street, rp.street2, rp.zip, rp.city,
@@ -229,7 +238,8 @@ type Service () =
                    rp.aeat_partner_vat, rp.aeat_partner_name, rp.aeat_data_diff,
                    acc_rec.code as property_account_receivable_id, acc.code as property_account_payable_id,
                    apt.id as account_payment_term_id, rcpm.payment_mode_id as customer_payment_mode_id,
-                   rspm.payment_mode_id as supplier_payment_mode_id
+                   rspm.payment_mode_id as supplier_payment_mode_id,
+                   rppl.product_pricelist as property_product_pricelist
             from res_partner as rp
             left join rel_payable as pay on rp.id = pay.partner_id
             left join rel_receivable as rec on rp.id = rec.partner_id
@@ -240,10 +250,12 @@ type Service () =
             left join account_payment_term as apt on rp_term.payment_term_id = apt.id
             left join rel_customer_payment_mode as rcpm on rp.id = rcpm.partner_id
             left join rel_supplier_payment_mode_id as rspm on rp.id = rspm.partner_id
+            left join rel_product_pricelist as rppl on rp.id = rppl.partner_id
             where rp.company_id = {ORIG_COMPANY_ID}
             and rp.active = true
             or rp.name ilike 'Deysanka SL'
-            order by rp.id"""
+            order by rp.id
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -291,6 +303,7 @@ type Service () =
                 reader.intOrNone "account_payment_term_id" |> AccountPaymentTerm.exportId
                 reader.intOrNone "customer_payment_mode_id" |> AccountPaymentMode.exportId
                 reader.intOrNone "supplier_payment_mode_id" |> AccountPaymentMode.exportId
+                reader.intOrNone "property_product_pricelist" |> ProductPriceList.exportId
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -928,9 +941,9 @@ type Service () =
                                   |> List.filter (fun ml -> not ml.IsEmpty)
         //--------------------------------------------------------------------------------------------------------------
 
-        let allMoveLinesData = (pendigMoveLinesData @
-                                totalsBalanceData @
-                                detailsWithBalanceData)
+        let allMoveLinesData = pendigMoveLinesData @
+                               totalsBalanceData @
+                               detailsWithBalanceData
                                |> List.sortBy (fun ml -> ml[COL_ACCOUNT])
 
         let totalDebit = allMoveLinesData
@@ -957,8 +970,8 @@ type Service () =
                 if total129 < 0.0 then 0.0 |> formatDecimal
         ]
 
-        let allMoveData = (flattenData [(moveInfo, allMoveLinesData)])
-                          @ [tmp129]
+        let allMoveData = (flattenData [(moveInfo, allMoveLinesData)]) @
+                          [tmp129]
 
         (header::allMoveData)
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
