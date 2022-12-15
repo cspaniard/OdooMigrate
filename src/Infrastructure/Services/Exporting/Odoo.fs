@@ -50,9 +50,11 @@ type Service () =
 
         let header = [ "id" ; "name" ; "bic" ; "country/id" ]
 
-        let sql = """select id, name, bic
-                     from res_bank
-                     where active=true"""
+        let sql = """
+            select id, name, bic
+            from res_bank
+            where active=true
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -72,12 +74,14 @@ type Service () =
         let header = [ "id" ; "bank_id/id" ; "acc_number"; "sequence"
                        "partner_id/id" ; "acc_holder_name" ; "description" ]
 
-        let sql = $"""select rpb.id, rpb.acc_number, rpb.sequence, rpb.partner_id, rpb.bank_id,
-                             rpb.acc_holder_name, rpb.description
-                      from res_partner_bank as rpb
-                      join res_partner as rp on rpb.partner_id = rp.id
-                      where rpb.company_id={ORIG_COMPANY_ID}
-                      and rp.active = true"""
+        let sql = $"""
+            select rpb.id, rpb.acc_number, rpb.sequence, rpb.partner_id, rpb.bank_id,
+                   rpb.acc_holder_name, rpb.description
+            from res_partner_bank as rpb
+            join res_partner as rp on rpb.partner_id = rp.id
+            where rpb.company_id={ORIG_COMPANY_ID}
+            and rp.active = true
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -101,9 +105,11 @@ type Service () =
                        "line_ids/value" ; "line_ids/value_amount" ; "line_ids/days"
                        "line_ids/day_of_the_month" ; "line_ids/option" ; "line_ids/sequence" ]
 
-        let sql = $"""select id, name, note, sequence
-                      from account_payment_term
-                      where company_id={ORIG_COMPANY_ID}"""
+        let sql = $"""
+            select id, name, note, sequence
+            from account_payment_term
+            where company_id={ORIG_COMPANY_ID}
+            """
 
         let termReaderFun (reader : RowReader) =
             [
@@ -113,9 +119,11 @@ type Service () =
                 reader.int "sequence" |> string
             ]
 
-        let sqlForLines = $"""select id, value, value_amount, days, day_of_the_month,
-                                     option, payment_id, sequence
-                              from {modelName}_line"""
+        let sqlForLines = $"""
+            select id, value, value_amount, days, day_of_the_month,
+                   option, payment_id, sequence
+            from {modelName}_line
+            """
 
         let termLineReaderFun (reader : RowReader) =
             [
@@ -145,11 +153,13 @@ type Service () =
         let header = [ "id" ; "login"; "name" ; "notification_type" ; "team_id/.id"
                        "working_year" ; "lowest_working_date" ]
 
-        let sql = $"""select res_users.id, login, name, notification_type, working_year, lowest_working_date
-                      from res_users
-                      join res_partner on res_users.partner_id = res_partner.id
-                      where res_users.company_id={ORIG_COMPANY_ID}
-                      and res_users.active = true"""
+        let sql = $"""
+            select res_users.id, login, name, notification_type, working_year, lowest_working_date
+            from res_users
+            join res_partner on res_users.partner_id = res_partner.id
+            where res_users.company_id={ORIG_COMPANY_ID}
+            and res_users.active = true
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -330,7 +340,8 @@ type Service () =
             and aa.create_date > '2019-09-05'
             and not (aa.code like '41%%' or aa.code like '43%%')
             or aa.code in ('430150')
-            order by aa.code"""
+            order by aa.code
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -352,13 +363,15 @@ type Service () =
         let header = [ "id" ; "name" ; "code"; "type" ; "sequence"
                        "n43_date_type" ; "default_account_id" ; "refund_sequence" ]
 
-        let sql = $"""select aj.id, aj.name, aj.code, aj.type, aj.sequence, n43_date_type,
-                             case when aj.type in ('purchase', 'sale', 'bank', 'cash') then aa.code end account_id,
-                             case when aj.type in ('purchase', 'sale', 'bank', 'cash') then true else false end refund_sequence
-                      from account_journal as aj
-                      left join account_account as aa on aj.default_credit_account_id = aa.id
-                      where aj.company_id={ORIG_COMPANY_ID}
-                      and aj.code <> 'STJ'"""
+        let sql = $"""
+            select aj.id, aj.name, aj.code, aj.type, aj.sequence, n43_date_type,
+                   case when aj.type in ('purchase', 'sale', 'bank', 'cash') then aa.code end account_id,
+                   case when aj.type in ('purchase', 'sale', 'bank', 'cash') then true else false end refund_sequence
+            from account_journal as aj
+            left join account_account as aa on aj.default_credit_account_id = aa.id
+            where aj.company_id={ORIG_COMPANY_ID}
+            and aj.code <> 'STJ'
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -382,13 +395,15 @@ type Service () =
         let header = [ "id" ; "format" ; "type"; "partner_bank_id/id" ; "signature_date"
                        "state" ; "recurrent_sequence_type" ; "scheme" ]
 
-        let sql = $"""select abm.id, abm.format, abm.type, abm.partner_bank_id, abm.partner_id, abm.signature_date,
-                             abm.last_debit_date, abm.state, abm.recurrent_sequence_type, abm.scheme
-                      from account_banking_mandate as abm
-                      join res_partner as rp on abm.partner_id = rp.id
-                      where abm.company_id={ORIG_COMPANY_ID}
-                      and abm.state = 'valid'
-                      and rp.active = true"""
+        let sql = $"""
+            select abm.id, abm.format, abm.type, abm.partner_bank_id, abm.partner_id, abm.signature_date,
+                   abm.last_debit_date, abm.state, abm.recurrent_sequence_type, abm.scheme
+            from account_banking_mandate as abm
+            join res_partner as rp on abm.partner_id = rp.id
+            where abm.company_id={ORIG_COMPANY_ID}
+            and abm.state = 'valid'
+            and rp.active = true
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -411,8 +426,10 @@ type Service () =
 
         let header = [ "id" ; "name" ; "sequence"; "discount_policy" ]
 
-        let sql = $"""select ppl.id, ppl.name, ppl.sequence, ppl.discount_policy
-                      from product_pricelist as ppl"""
+        let sql = """
+            select ppl.id, ppl.name, ppl.sequence, ppl.discount_policy
+            from product_pricelist as ppl
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -443,9 +460,11 @@ type Service () =
 
         let header = [ "id" ; "parent_path" ; "name" ; "complete_name"; "parent_id/.id" ; "allow_negative_stock" ]
 
-        let sql = $"""select pg.id, pg.parent_path, pg.name, pg.complete_name, pg.parent_id, pg.allow_negative_stock
-                      from product_category as pg
-                      where pg.id > 3"""
+        let sql = """
+            select pg.id, pg.parent_path, pg.name, pg.complete_name, pg.parent_id, pg.allow_negative_stock
+            from product_category as pg
+            where pg.id > 3
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -470,37 +489,39 @@ type Service () =
                        "invoice_policy" ; "purchase_line_warn_msg" ; "allow_negative_stock"
                        "property_account_income_id" ; "property_account_expense_id" ]
 
-        let sql = $"""with
-                      rel_account_income as (
-                          select id, company_id,
-                                 split_part(res_id, ',', 2)::integer as product_template_id,
-                                 split_part(value_reference, ',', 2)::integer as account_id
-                          from ir_property
-                          where name = 'property_account_income_id'
-                          and res_id is not null
-                      ),
-                      rel_account_expense as (
-                          select id, company_id,
-                                 split_part(res_id, ',', 2)::integer as product_template_id,
-                                 split_part(value_reference, ',', 2)::integer as account_id
-                          from ir_property
-                          where name = 'property_account_expense_id'
-                          and res_id is not null
-                      )
-                      select pt.id, pt.name, pt.default_code, pt.sequence, pt.type, pc.complete_name as categ_id,
-                             pt.list_price, pt.sale_ok, pt.purchase_ok, pt.active, pt.sale_delay, pt.tracking,
-                             pt.service_type, pt.sale_line_warn, pt.expense_policy, pt.purchase_method,
-                             pt.invoice_policy, pt.purchase_line_warn_msg, pt.allow_negative_stock,
-                             aai.code as property_account_income_id, aae.code as property_account_expense_id
-                      from product_template as pt
-                      left join product_category as pc on pt.categ_id = pc.id
-                      left join rel_account_income as rai on pt.id = rai.product_template_id
-                      left join rel_account_expense as rae on pt.id = rae.product_template_id
-                      left join account_account as aai on rai.account_id = aai.id
-                      left join account_account as aae on rae.account_id = aae.id
-                      where pt.company_id = {ORIG_COMPANY_ID}
-                      and pt.active = true
-                      order by pt.id"""
+        let sql = $"""
+            with
+            rel_account_income as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as product_template_id,
+                       split_part(value_reference, ',', 2)::integer as account_id
+                from ir_property
+                where name = 'property_account_income_id'
+                and res_id is not null
+            ),
+            rel_account_expense as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as product_template_id,
+                       split_part(value_reference, ',', 2)::integer as account_id
+                from ir_property
+                where name = 'property_account_expense_id'
+                and res_id is not null
+            )
+            select pt.id, pt.name, pt.default_code, pt.sequence, pt.type, pc.complete_name as categ_id,
+                   pt.list_price, pt.sale_ok, pt.purchase_ok, pt.active, pt.sale_delay, pt.tracking,
+                   pt.service_type, pt.sale_line_warn, pt.expense_policy, pt.purchase_method,
+                   pt.invoice_policy, pt.purchase_line_warn_msg, pt.allow_negative_stock,
+                   aai.code as property_account_income_id, aae.code as property_account_expense_id
+            from product_template as pt
+            left join product_category as pc on pt.categ_id = pc.id
+            left join rel_account_income as rai on pt.id = rai.product_template_id
+            left join rel_account_expense as rae on pt.id = rae.product_template_id
+            left join account_account as aai on rai.account_id = aai.id
+            left join account_account as aae on rae.account_id = aae.id
+            where pt.company_id = {ORIG_COMPANY_ID}
+            and pt.active = true
+            order by pt.id
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -540,18 +561,20 @@ type Service () =
 
         let header = [ "id" ; "taxes_id" ]
 
-        let sql = $"""select pt.id,
-                      case when at.name = 'IVA Exento Repercutido'
-                          then 'IVA Exento Repercutido Sujeto'
-                      else at.name
-                      end taxes_id
+        let sql = $"""
+            select pt.id,
+            case when at.name = 'IVA Exento Repercutido'
+                then 'IVA Exento Repercutido Sujeto'
+            else at.name
+            end taxes_id
 
-                      from product_template as pt
-                      left join product_taxes_rel as ptr on pt.id = ptr.prod_id
-                      left join account_tax as at on ptr.tax_id = at.id
-                      where pt.company_id = {ORIG_COMPANY_ID}
-                      and pt.active = true
-                      order by pt.id"""
+            from product_template as pt
+            left join product_taxes_rel as ptr on pt.id = ptr.prod_id
+            left join account_tax as at on ptr.tax_id = at.id
+            where pt.company_id = {ORIG_COMPANY_ID}
+            and pt.active = true
+            order by pt.id
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -568,13 +591,15 @@ type Service () =
 
         let header = [ "id" ; "supplier_taxes_id" ]
 
-        let sql = $"""select pt.id, at.name as taxes_id
-                      from product_template as pt
-                      left join product_supplier_taxes_rel as pstr on pt.id = pstr.prod_id
-                      left join account_tax as at on pstr.tax_id = at.id
-                      where pt.company_id = {ORIG_COMPANY_ID}
-                      and pt.active = true
-                      order by pt.id"""
+        let sql = $"""
+            select pt.id, at.name as taxes_id
+            from product_template as pt
+            left join product_supplier_taxes_rel as pstr on pt.id = pstr.prod_id
+            left join account_tax as at on pstr.tax_id = at.id
+            where pt.company_id = {ORIG_COMPANY_ID}
+            and pt.active = true
+            order by pt.id
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -591,12 +616,14 @@ type Service () =
 
         let header = [ "id" ; "name/id" ; "price" ; "date_start" ; "date_end" ; "product_tmpl_id/id" ]
 
-        let sql = $"""select psi.id, psi.name, psi.price, date_start, date_end, psi.product_tmpl_id
-                      from product_supplierinfo as psi
-                      join product_template as pt on psi.product_tmpl_id = pt.id
-                      where psi.company_id = {ORIG_COMPANY_ID}
-                      and pt.active = true
-                      order by psi.product_tmpl_id"""
+        let sql = $"""
+            select psi.id, psi.name, psi.price, date_start, date_end, psi.product_tmpl_id
+            from product_supplierinfo as psi
+            join product_template as pt on psi.product_tmpl_id = pt.id
+            where psi.company_id = {ORIG_COMPANY_ID}
+            and pt.active = true
+            order by psi.product_tmpl_id
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -618,7 +645,7 @@ type Service () =
         let header = [ "id" ; "product_tmpl_id/id" ; "applied_on" ; "base" ; "pricelist_id/id"
                        "compute_price" ; "fixed_price" ; "percent_price" ]
 
-        let sql = $"""
+        let sql = """
             select ppi.id, ppi.product_tmpl_id, ppi.applied_on, ppi.base, ppi.pricelist_id,
                    ppi.compute_price, ppi.fixed_price, ppi.percent_price, ppi.company_id
             from product_pricelist_item as ppi
@@ -629,7 +656,8 @@ type Service () =
             from product_pricelist_item as ppi
             left join product_template as pt on ppi.product_tmpl_id = pt.id
             where pt.active = true
-            order by 2"""
+            order by 2
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -673,7 +701,8 @@ type Service () =
                    apm.convert_to_ascii
             from account_payment_method as apm
             join model_data as md on apm.id = md.id
-            where apm.id <> 3"""
+            where apm.id <> 3
+            """
 
         let readerFun (reader : RowReader) =
             [
@@ -727,7 +756,8 @@ type Service () =
                    apm.generate_move, apm.post_move, apm.move_option, pmr.journal_ids as default_journal_ids
             from account_payment_mode as apm
             join model_data as md on apm.payment_method_id = md.id
-            join pm_rel as pmr on apm.payment_method_id = pmr.payment_mode_id"""
+            join pm_rel as pmr on apm.payment_method_id = pmr.payment_mode_id
+            """
 
         let readerFun (reader : RowReader) =
             [
