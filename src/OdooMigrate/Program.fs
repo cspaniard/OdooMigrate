@@ -28,9 +28,9 @@ let exportList =
         // ("product_supplier_taxes", IOdooExportService.exportProductSupplierTaxes)
         // ("product_supplierinfo", IOdooExportService.exportProductSupplierInfo)
         // ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
-        // ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
+        ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
         // ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
-        ("account_opening_move", IOdooExportService.exportAccountOpeningMove)
+        // ("account_opening_move", IOdooExportService.exportAccountOpeningMove)
     ]
 
 Console.ForegroundColor <- ConsoleColor.Yellow

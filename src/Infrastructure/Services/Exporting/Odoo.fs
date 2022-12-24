@@ -731,7 +731,7 @@ type Service () =
         let header =
             [
                 "id" ; "name" ; "bank_account_link" ; "fixed_journal_id/id" ; "payment_method_id/id" ; "payment_type"
-                "payment_method_code" ; "show_bank_account" ; "payment_order_ok" ; "default_payment_mode"
+                "show_bank_account" ; "payment_order_ok" ; "default_payment_mode"
                 "default_invoice" ; "default_target_move" ; "default_date_type" ; "default_date_prefered"
                 "group_lines" ; "generate_move" ; "post_move" ; "move_option" ; "default_journal_ids/id"
             ]
@@ -768,7 +768,6 @@ type Service () =
                 reader.textOrNone "payment_method_id" |> orEmptyString
                 reader.textOrNone "payment_type" |> orEmptyString
 
-                reader.textOrNone "payment_method_code" |> orEmptyString
                 reader.textOrNone "show_bank_account" |> orEmptyString
                 reader.boolOrNone "payment_order_ok" |> orEmptyString
                 reader.textOrNone "default_payment_mode" |> orEmptyString
