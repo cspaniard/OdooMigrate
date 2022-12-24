@@ -18,7 +18,7 @@ let exportList =
         // ("res_users", IOdooExportService.exportResUsers)
         // ("res_partner", IOdooExportService.exportResPartner)
         // ("account_account", IOdooExportService.exportAccountAccount)
-        // ("account_journal", IOdooExportService.exportAccountJournal)
+        ("account_journal", IOdooExportService.exportAccountJournal)
         // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
         // ("product_pricelist", IOdooExportService.exportProductPriceList)
         // ("product_category_translation", IOdooExportService.exportProductCategoryTranslation)
@@ -28,7 +28,7 @@ let exportList =
         // ("product_supplier_taxes", IOdooExportService.exportProductSupplierTaxes)
         // ("product_supplierinfo", IOdooExportService.exportProductSupplierInfo)
         // ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
-        ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
+        // ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
         // ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
         // ("account_opening_move", IOdooExportService.exportAccountOpeningMove)
     ]

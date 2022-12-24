@@ -381,7 +381,11 @@ type Service () =
                 reader.text "type"
                 reader.int "sequence" |> string
                 reader.text "n43_date_type"
-                reader.textOrNone "account_id" |> orEmptyString
+
+                match reader.textOrNone "account_id" |> orEmptyString with
+                | "5729991" -> "572991"
+                | myval -> myval
+
                 reader.boolOrNone "refund_sequence" |> orEmptyString
             ]
 
