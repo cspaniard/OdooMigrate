@@ -183,6 +183,7 @@ type Service () =
         let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
                        "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
                        "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company" ; "partner_share"
+                       "customer" ; "supplier"
                        "commercial_partner_id" ; "commercial_company_name" ; "not_in_mod347"
                        "sale_journal_id/id" ; "purchase_journal_id/id" ; "aeat_anonymous_cash_customer"
                        "aeat_partner_vat" ; "aeat_partner_name" ; "aeat_data_diff"
@@ -246,6 +247,7 @@ type Service () =
                    rp.partner_share, rp.commercial_partner_id, rp.commercial_company_name, rp.not_in_mod347,
                    rp.sale_journal, rp.purchase_journal, rp.aeat_anonymous_cash_customer,
                    rp.aeat_partner_vat, rp.aeat_partner_name, rp.aeat_data_diff,
+                   rp.customer, rp.supplier,
                    acc_rec.code as property_account_receivable_id, acc.code as property_account_payable_id,
                    apt.id as account_payment_term_id, rcpm.payment_mode_id as customer_payment_mode_id,
                    rspm.payment_mode_id as supplier_payment_mode_id,
@@ -294,6 +296,9 @@ type Service () =
                 reader.textOrNone "mobile" |> orEmptyString
                 reader.bool "is_company" |> string
                 reader.bool "partner_share" |> string
+
+                reader.bool "customer" |> string
+                reader.bool "supplier" |> string
 
                 reader.int "commercial_partner_id" |> string
                 reader.textOrNone "commercial_company_name" |> orEmptyString
