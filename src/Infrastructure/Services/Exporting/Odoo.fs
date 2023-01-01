@@ -1018,3 +1018,17 @@ type Service () =
 
         (header::allMoveData)
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportDefaultValues (modelName : string) =
+
+        let header = [ "id" ; "field_id/id" ; "condition" ; "json_value" ]
+
+        let data =
+            [
+                [ Some 1 |> DefaultValue.exportId ; "account.field_account_move__journal_id" ; "" ; "0" ]
+            ]
+
+        header::data
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------

@@ -16,7 +16,7 @@ let exportList =
         // ("res_partner_bank", IOdooExportService.exportResPartnerBank)
         // ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
         // ("res_users", IOdooExportService.exportResUsers)
-        ("res_partner", IOdooExportService.exportResPartner)
+        // ("res_partner", IOdooExportService.exportResPartner)
         // ("account_account", IOdooExportService.exportAccountAccount)
         // ("account_journal", IOdooExportService.exportAccountJournal)
         // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
@@ -31,6 +31,7 @@ let exportList =
         // ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
         // ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
         // ("account_opening_move", IOdooExportService.exportAccountOpeningMove)
+        ("ir_default", IOdooExportService.exportDefaultValues)
     ]
 
 Console.ForegroundColor <- ConsoleColor.Yellow

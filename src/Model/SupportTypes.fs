@@ -59,3 +59,6 @@ type AccountOpeningMove = AccountOpeningMove with
 
 type AccountMoveLine = AccountMoveLine with
     static member exportId idOption = exportId "account_move_line" idOption
+
+type DefaultValue = DefaultValue with
+    static member exportId idOption = exportId "ir_default" idOption
