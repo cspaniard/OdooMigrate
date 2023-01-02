@@ -3,7 +3,8 @@ namespace Model
 module Constants =
     let [<Literal>] DEST_COMPANY_ID = "1"
     let [<Literal>] ORIG_COMPANY_ID = "2"
-    let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_gestion1; Username=dsanroma; Password=pepe;"
+    let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=gestion1; Username=postgres; Password=HolaJuan1947;"
+    // let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_gestion1; Username=dsanroma; Password=pepe;"
 
 module Helpers =
 
