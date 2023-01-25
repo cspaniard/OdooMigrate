@@ -820,7 +820,7 @@ type Service () =
             [
                 "id" ; "date" ; "name" ; "partner_id" ; "ref" ; "journal_id" ; "line_ids/account_id"
                 "line_ids/partner_id/id" ; "line_ids/name" ; "line_ids/debit" ; "line_ids/credit"
-                "line_ids/date_maturity"
+                "line_ids/date_maturity" ; "line_ids/payment_mode_id/id"
             ]
 
         let moveInfo =
@@ -929,7 +929,7 @@ type Service () =
                 lines_data as (
                     select aml.id, aa.code as account_id, aml.partner_id, aml.credit as amount,
                            aml.credit - sum(apr.amount) as residual, aml.ref, 'C' as move_type,
-                           aml.date_maturity
+                           aml.date_maturity, aml.payment_mode_id
                     from account_move_line as aml
                     left join account_partial_reconcile as apr on aml.id = apr.credit_move_id
                     join account_account as aa on aml.account_id = aa.id
@@ -941,7 +941,7 @@ type Service () =
                 )
             select aml.id, aa.code as account_id, aml.partner_id, aml.debit as amount,
                    aml.debit - sum(apr.amount) as residual, aml.ref, 'D' as move_type,
-                   aml.date_maturity
+                   aml.date_maturity, aml.payment_mode_id
             from account_move_line as aml
             left join account_partial_reconcile as apr on aml.id = apr.debit_move_id
             join account_account as aa on aml.account_id = aa.id
@@ -983,6 +983,7 @@ type Service () =
                     if reader.text "move_type" = "D" then 0.0 |> formatDecimal
 
                     reader.dateOnlyOrNone "date_maturity" |> dateOrEmptyString
+                    reader.intOrNone "payment_mode_id" |> AccountPaymentMode.exportId
             ]
         //--------------------------------------------------------------------------------------------------------------
 
