@@ -722,7 +722,7 @@ type Service () =
                    apm.convert_to_ascii
             from account_payment_method as apm
             join model_data as md on apm.id = md.id
-            where apm.id <> 3
+            --where apm.id <> 3
             """
 
         let readerFun (reader : RowReader) =
