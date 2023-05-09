@@ -835,7 +835,7 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
 
         //--------------------------------------------------------------------------------------------------------------
-        let detailsWithBalanceSql = """
+        let detailsWithBalanceSql = $"""
             with
                 account_list as (values
                     ('180000'), ('260000')
@@ -844,7 +844,10 @@ type Service () =
                     select aml.partner_id
                     from account_move_line as aml
                     join account_account as aa on aml.account_id = aa.id
-                    where aa.code in (select * from account_list)
+                    join account_move as am on aml.move_id = am.id
+                    where aml.company_id = {ORIG_COMPANY_ID}
+                    and am.state = 'posted'
+                    and aa.code in (select * from account_list)
                     group by aa.code, aml.partner_id
                     having round(sum(aml.debit) - sum(aml.credit), 2) <> 0.0
                 )
@@ -853,7 +856,10 @@ type Service () =
             from account_move_line as aml
             join account_account as aa on aml.account_id = aa.id
             join res_partner as rp on aml.partner_id = rp.id
-            where aml.partner_id in (select partner_id from active_partners)
+            join account_move as am on aml.move_id = am.id
+            where aml.company_id = {ORIG_COMPANY_ID}
+            and am.state = 'posted'
+            and aml.partner_id in (select partner_id from active_partners)
             and aa.code in (select * from account_list)
             order by aa.code, aml.partner_id
             """
