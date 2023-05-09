@@ -1030,7 +1030,16 @@ type Service () =
                           [tmp129]
 
         (header::allMoveData)
+        |> List.map(
+            fun l ->
+                l
+                |> List.map(fun c ->
+                       if c = "__export__.res_partner_7"
+                       then "l10n_es_aeat.res_partner_aeat"
+                       else c)
+                    )
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
     static member exportDefaultValues (modelName : string) =
