@@ -922,7 +922,7 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
 
         //--------------------------------------------------------------------------------------------------------------
-        let pendingMoveLinesSql = """
+        let pendingMoveLinesSql = $"""
             with
                 account_list as (values
                     ('171021'), ('171022'), ('400000'), ('410000'), ('411000'),
@@ -937,7 +937,10 @@ type Service () =
                     from account_move_line as aml
                     left join account_partial_reconcile as apr on aml.id = apr.credit_move_id
                     join account_account as aa on aml.account_id = aa.id
-                    where aml.full_reconcile_id is null
+                    join account_move as am on aml.move_id = am.id
+                    where aml.company_id = {ORIG_COMPANY_ID}
+                    and am.state = 'posted'
+                    and aml.full_reconcile_id is null
                     and aml.balance <> 0.0
                     and aa.code in (select * from account_list)
                     and aml.credit > 0.0
@@ -949,7 +952,10 @@ type Service () =
             from account_move_line as aml
             left join account_partial_reconcile as apr on aml.id = apr.debit_move_id
             join account_account as aa on aml.account_id = aa.id
-            where aml.full_reconcile_id is null
+            join account_move as am on aml.move_id = am.id
+            where aml.company_id = {ORIG_COMPANY_ID}
+            and am.state = 'posted'
+            and aml.full_reconcile_id is null
             and aml.balance <> 0.0
             and aa.code in (select * from account_list)
             and aml.credit <= 0.0
