@@ -870,16 +870,20 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
 
         //--------------------------------------------------------------------------------------------------------------
-        let totalsBalanceSql = """
+        let totalsBalanceSql =
+            $"""
             with
                 account_totals as (
                     select distinct aa.code, aa.name, 0 as partner_id, '' as ref, round(sum(aml.debit), 2) as debit,
                                     round(sum(aml.credit), 2) as credit
                     from account_move_line as aml
+                    join account_move as am on aml.move_id = am.id
                     join account_account as aa on aml.account_id = aa.id
-                    where aml.company_id = 2
+                    where aml.company_id = {ORIG_COMPANY_ID}
+                    and am.state = 'posted'
                     group by aa.code, aa.name
-                )
+                )""" +
+            """
             select at.code as account_id, at.name, at.partner_id, at.ref, at.debit, at.credit,
                    round(debit - credit, 2) as balance
             from account_totals as at
