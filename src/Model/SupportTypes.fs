@@ -4,7 +4,7 @@ module Constants =
     let [<Literal>] DEST_COMPANY_ID = "1"
     let [<Literal>] ORIG_COMPANY_ID = "2"
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=zzz_fama_bolsa; Username=postgres; Password=HolaJuan1947;"
-    let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=zzz_ges_cierre; Username=postgres; Password=HolaJuan1947;"
+    let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=gestion1; Username=postgres; Password=HolaJuan1947;"
     // let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_Nueva_Dieta_Facil; Username=dsanroma; Password=pepe;"
 
 module Helpers =
