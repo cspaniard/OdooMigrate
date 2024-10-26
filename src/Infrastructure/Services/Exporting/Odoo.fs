@@ -2,6 +2,7 @@ namespace Services.Exporting.Odoo
 
 open System
 open System.Globalization
+open System.Runtime.Intrinsics.X86
 open Model
 open Model.Constants
 
@@ -822,11 +823,11 @@ type Service () =
 
         let moveInfo =
             [
-                Some "dey" |> AccountOpeningMove.exportId
-                "2023-01-01"
+                Some $"dey_{OPENING_MOVE_YEAR}" |> AccountOpeningMove.exportId
+                $"{OPENING_MOVE_YEAR}-01-01"
                 "/"
                 ""
-                "Asiento Apertura Deysanka"
+                $"Asiento Apertura Deysanka {OPENING_MOVE_YEAR}"
                 "Diario Operaciones varias"
             ]
         //--------------------------------------------------------------------------------------------------------------
@@ -891,30 +892,34 @@ type Service () =
                    round(debit - credit, 2) as balance
             from account_totals as at
             where round(debit - credit, 2) <> 0.0
-            and at.code similar to '(10|11|12)%'
-            or at.code in ('206000', '210002', '210003', '211001', '211002', '211003',
-                           '211005', '211006', '211007',
-                           '212000', '213001', '214000', '214001', '217000', '218002',
-                           '260001', '280000', '300000',
-                           '548002', '548003', '551001',
-                           '551018', '551019', '551020', '551022',
-                           '570001', '570002', '572001', '572012')
-            or at.code like '21500%'
-            or at.code like '21600%'
-            or at.code like '281%'
+            and at.code similar to '(10|11|12|2|551|555|570|572)%'
+            or at.code in ('300000',
+                           '470010',
+                           '523000',
+                           '548002', '548003')
             order by 1
             """
+
+        let doublesAreEqual (epsilon : double) (d1 : double) (d2 : double) : bool =
+            Double.Abs (d1 - d2) < epsilon
+
+        let areEqual_0001 = doublesAreEqual 0.0001
+        let areNotEqual_0001 d1 d2 = not (doublesAreEqual 0.0001 d1 d2)
+
+        let areEqual_001 = doublesAreEqual 0.001
+        let areNotEqual_001 d1 d2 = not (doublesAreEqual 0.001 d1 d2)
 
         let totalsBalanceReaderFun (reader : RowReader) =
             [
                 let balance = reader.double "balance"
 
-                if balance <> 0.0 then
+                // if balance <> 0.0 then
+                if areNotEqual_0001 balance 0.0 then
                     ""
                     reader.text "account_id"
                     ""   // Partner_id
 
-                    "Asiento Apertura 2023"   // ref
+                    $"Asiento Apertura {OPENING_MOVE_YEAR}"   // ref
 
 
                     if balance < 0.0 then "0.0"
@@ -937,7 +942,7 @@ type Service () =
                 lines_data as (
                     select aml.id, aa.code as account_id, aml.partner_id, aml.credit as amount,
                            aml.credit - sum(apr.amount) as residual, aml.ref, 'C' as move_type,
-                           aml.date_maturity, aml.payment_mode_id
+                           aml.date_maturity, aml.payment_mode_id, am.name as move_name
                     from account_move_line as aml
                     left join account_partial_reconcile as apr on aml.id = apr.credit_move_id
                     join account_account as aa on aml.account_id = aa.id
@@ -948,11 +953,11 @@ type Service () =
                     and aml.balance <> 0.0
                     and aa.code in (select * from account_list)
                     and aml.credit > 0.0
-                    group by aml.id, aa.code
+                    group by aml.id, aa.code, am.name
                 )
             select aml.id, aa.code as account_id, aml.partner_id, aml.debit as amount,
                    aml.debit - sum(apr.amount) as residual, aml.ref, 'D' as move_type,
-                   aml.date_maturity, aml.payment_mode_id
+                   aml.date_maturity, aml.payment_mode_id, am.name as move_name
             from account_move_line as aml
             left join account_partial_reconcile as apr on aml.id = apr.debit_move_id
             join account_account as aa on aml.account_id = aa.id
@@ -963,7 +968,7 @@ type Service () =
             and aml.balance <> 0.0
             and aa.code in (select * from account_list)
             and aml.credit <= 0.0
-            group by aml.id, aa.code
+            group by aml.id, aa.code, am.name
             --having aml.debit - sum(apr.amount) <> 0.0
             union all
             select *
@@ -986,7 +991,9 @@ type Service () =
                     reader.text "account_id"
                     reader.intOrNone "partner_id" |> ResPartner.exportId
 
-                    reader.textOrNone "ref" |> orEmptyString
+                    match reader.textOrNone "ref" with
+                    | Some ref -> ref
+                    | None -> reader.textOrNone "move_name" |> orEmptyString
 
                     if reader.text "move_type" = "C" then 0.0 |> formatDecimal
 

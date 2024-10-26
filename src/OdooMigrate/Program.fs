@@ -8,8 +8,8 @@ type IOdooExportService = DI.Services.ExportingDI.IOdooExportService
 open Model.Constants
 
 ISqlBroker.init CONNECTION_STRING
-IExcelBroker.init "/home/dsanroma/odoo_export"
-// IExcelBroker.init "/home/dsanroma/odoo_export/NDF"
+// IExcelBroker.init "/home/dsanroma/odoo_export"
+IExcelBroker.init "/home/dsanroma/odoo_export/NDF"
 
 let exportList =
     [
@@ -31,7 +31,7 @@ let exportList =
         // ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
         // ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
         // ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
-        ("account_opening_move", IOdooExportService.exportAccountOpeningMove)
+        ("account_opening_move_15", IOdooExportService.exportAccountOpeningMove)
         // ("ir_default", IOdooExportService.exportDefaultValues)
     ]
 
