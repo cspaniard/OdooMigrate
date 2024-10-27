@@ -3,12 +3,12 @@ namespace Model
 module Constants =
     let [<Literal>] OPENING_MOVE_YEAR = "2023"
     let [<Literal>] DEST_COMPANY_ID = "1"
-    let [<Literal>] ORIG_COMPANY_ID = "2"
+    let [<Literal>] ORIG_COMPANY_ID = "1"
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=zzz_fama_bolsa; Username=postgres; Password=HolaJuan1947;"
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=gestion1; Username=postgres; Password=HolaJuan1947;"
-    // let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_deysanka_15; Username=postgres; Password=HolaJuan1947;"
+    let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_deysanka_15; Username=postgres; Password=HolaJuan1947;"
     // let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_Nueva_Dieta_Facil; Username=dsanroma; Password=pepe;"
-    let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=Nueva_Dieta_Facil; Username=dsanroma; Password=HolaJuan1947;"
+    // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=Nueva_Dieta_Facil; Username=dsanroma; Password=HolaJuan1947;"
 
 module Helpers =
 

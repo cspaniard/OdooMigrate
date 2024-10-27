@@ -103,13 +103,12 @@ type Service () =
     static member exportAccountPaymentTerm (modelName : string) =
 
         let header = [ "id" ; "name" ; "note" ; "sequence"
-                       "line_ids/value" ; "line_ids/value_amount" ; "line_ids/days"
-                       "line_ids/day_of_the_month" ; "line_ids/option" ; "line_ids/sequence" ]
+                       "line_ids/value" ; "line_ids/value_amount" ; "line_ids/nb_days"
+                       "line_ids/days_next_month" ; "line_ids/delay_type" ]
 
         let sql = $"""
             select id, name, note, sequence
             from account_payment_term
-            where company_id={ORIG_COMPANY_ID}
             """
 
         let termReaderFun (reader : RowReader) =
@@ -126,19 +125,51 @@ type Service () =
             from {modelName}_line
             """
 
+        let delayTypeMap = Map.ofList [
+            "day_after_invoice_date", "days_after"
+            "day_following_month", "days_end_of_month_on_the"
+        ]
+
         let termLineReaderFun (reader : RowReader) =
             [
                 reader.intOrNone "payment_id" |> AccountPaymentTerm.exportId
-                reader.text "value"
+
+                let value = reader.text "value"
+                if value = "balance" then "percent" else value
+
                 reader.doubleOrNone "value_amount" |> Option.defaultValue 0.0 |> string
                 reader.int "days" |> string
-                reader.intOrNone "day_of_the_month" |> Option.defaultValue 0 |> string
-                reader.text "option"
-                reader.int "sequence" |> string
+
+                let dayOfTheMonth = reader.intOrNone "day_of_the_month" |> Option.defaultValue 0 |> string
+                dayOfTheMonth
+
+                if dayOfTheMonth = "0"
+                then delayTypeMap[reader.text "option"]
+                else "days_end_of_month_on_the"
             ]
 
         let terms = ISqlBroker.getExportData sql termReaderFun
-        let termLines = ISqlBroker.getExportData sqlForLines termLineReaderFun
+        let termLines =
+
+            let updatePercentInRow (percentValue : string) (row : string list) =
+                row
+                |> List.mapi (fun i colVal -> if i = 2 then percentValue else colVal)
+
+            let updatePercentInGroup = function
+                | [singleRow] ->
+                    [updatePercentInRow "100" singleRow]
+                | firstRow :: secondRow :: _ ->
+                    let value = decimal firstRow[2]
+                    [
+                        firstRow
+                        secondRow |> updatePercentInRow (string (100m - value))
+                    ]
+                | [] -> []
+
+
+            ISqlBroker.getExportData sqlForLines termLineReaderFun
+            |> List.groupBy List.head
+            |> List.collect (snd >> updatePercentInGroup)
 
         let joinData = [
             for term in terms -> (term, termLines |> List.filter (fun termLine -> termLine[0] = term[0]))

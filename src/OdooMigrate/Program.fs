@@ -9,13 +9,13 @@ open Model.Constants
 
 ISqlBroker.init CONNECTION_STRING
 // IExcelBroker.init "/home/dsanroma/odoo_export"
-IExcelBroker.init "/home/dsanroma/odoo_export/NDF"
+IExcelBroker.init "/home/dsanroma/odoo_export/deysanka_15"
 
 let exportList =
     [
         // ("res_bank", IOdooExportService.exportResBank)
         // ("res_partner_bank", IOdooExportService.exportResPartnerBank)
-        // ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
+        ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
         // ("res_users", IOdooExportService.exportResUsers)
         // ("res_partner", IOdooExportService.exportResPartner)
         // ("account_account", IOdooExportService.exportAccountAccount)
@@ -31,7 +31,7 @@ let exportList =
         // ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
         // ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
         // ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
-        ("account_opening_move_15", IOdooExportService.exportAccountOpeningMove)
+        // ("account_opening_move_15", IOdooExportService.exportAccountOpeningMove)
         // ("ir_default", IOdooExportService.exportDefaultValues)
     ]
 
