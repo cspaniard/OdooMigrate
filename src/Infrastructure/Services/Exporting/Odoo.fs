@@ -306,7 +306,7 @@ type Service () =
             left join rel_product_pricelist as rppl on rp.id = rppl.partner_id
             left join rel_account_position as rap on rp.id = rap.partner_id
             left join account_fiscal_position as afp on rap.account_position = afp.id
-            where rp.company_id = {ORIG_COMPANY_ID}
+            where rp.customer is not null
             and rp.active = true
             or rp.name ilike 'Deysanka SL'
             order by rp.id
