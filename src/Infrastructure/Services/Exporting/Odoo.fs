@@ -783,10 +783,10 @@ type Service () =
 
         let header =
             [
-                "id" ; "name" ; "bank_account_link" ; "fixed_journal_id/id" ; "payment_method_id/id" ; "payment_type"
-                "show_bank_account" ; "payment_order_ok" ; "default_payment_mode"
+                "id" ; "name" ; "bank_account_link" ; "fixed_journal_id/id" ; "payment_method_id/id"
+                "payment_order_ok" ; "default_payment_mode"
                 "default_invoice" ; "default_target_move" ; "default_date_type" ; "default_date_prefered"
-                "group_lines" ; "generate_move" ; "post_move" ; "move_option" ; "default_journal_ids/id"
+                "group_lines" ; "default_journal_ids/id" ; "variable_journal_ids/id"
             ]
 
         let sql = $"""
@@ -800,16 +800,25 @@ type Service () =
                        string_agg('{exportIdPrefix}' || cast(account_journal_id as varchar(100)), ',') as journal_ids
                 from account_journal_account_payment_mode_rel
                 group by account_payment_mode_id
+            ),
+            pm_variable as (
+                select payment_mode_id as payment_mode_id,
+                       string_agg('{exportIdPrefix}' || cast(journal_id as varchar(100)), ',') as journal_ids
+                from account_payment_mode_variable_journal_rel
+                group by payment_mode_id
             )
+
             select apm.id, apm.name, apm.bank_account_link, apm.fixed_journal_id,
                    (md.module || '.' || md.name) as payment_method_id, apm.payment_type,
-                   apm.payment_method_code, apm.show_bank_account, apm.payment_order_ok,
+                   apm.payment_method_code, apm.payment_order_ok,
                    apm.default_payment_mode, apm.default_invoice, apm.default_target_move,
                    apm.default_date_type, apm.default_date_prefered, apm.group_lines,
-                   apm.generate_move, apm.post_move, apm.move_option, pmr.journal_ids as default_journal_ids
+                   pmr.journal_ids as default_journal_ids,
+                   pmv.journal_ids as variable_journal_ids
             from account_payment_mode as apm
             join model_data as md on apm.payment_method_id = md.id
-            join pm_rel as pmr on apm.payment_method_id = pmr.payment_mode_id
+            join pm_rel as pmr on apm.id = pmr.payment_mode_id
+            left join pm_variable as pmv on apm.id = pmv.payment_mode_id
             """
 
         let readerFun (reader : RowReader) =
@@ -819,9 +828,7 @@ type Service () =
                 reader.textOrNone "bank_account_link" |> orEmptyString
                 reader.intOrNone "fixed_journal_id" |> AccountJournal.exportId
                 reader.textOrNone "payment_method_id" |> orEmptyString
-                reader.textOrNone "payment_type" |> orEmptyString
 
-                reader.textOrNone "show_bank_account" |> orEmptyString
                 reader.boolOrNone "payment_order_ok" |> orEmptyString
                 reader.textOrNone "default_payment_mode" |> orEmptyString
 
@@ -831,10 +838,8 @@ type Service () =
                 reader.textOrNone "default_date_prefered" |> orEmptyString
 
                 reader.boolOrNone "group_lines" |> orEmptyString
-                reader.boolOrNone "generate_move" |> orEmptyString
-                reader.boolOrNone "post_move" |> orEmptyString
-                reader.textOrNone "move_option" |> orEmptyString
                 reader.textOrNone "default_journal_ids" |> orEmptyString
+                reader.textOrNone "variable_journal_ids" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
