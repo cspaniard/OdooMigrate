@@ -372,10 +372,31 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountAccount (modelName : string) =
 
-        let header = [ "id" ; "code" ; "name"; "user_type_id/id"
+        let header = [ "id" ; "code" ; "name"; "account_type_id"
                        "reconcile" ; "last_visible_year" ]
 
-        let sql = $"""
+        let accountTypeMap = Map [
+            "data_account_type_receivable", "asset_receivable"
+            "data_account_type_liquidity", "asset_cash"
+            "data_account_type_current_assets", "asset_current"
+            "data_account_type_non_current_assets", "asset_non_current"
+            "data_account_type_prepayments", "asset_prepayments"
+            "data_account_type_fixed_assets", "asset_fixed"
+            "data_account_type_payable", "liability_payable"
+            "data_account_type_credit_card", "liability_credit_card"
+            "data_account_type_current_liabilities", "liability_current"
+            "data_account_type_non_current_liabilities", "liability_non_current"
+            "data_account_type_equity", "equity"
+            "data_unaffected_earnings", "equity_unaffected"
+            "data_account_type_revenue", "income"
+            "data_account_type_other_income", "income_other"
+            "data_account_type_expenses", "expense"
+            "data_account_type_depreciation", "expense_depreciation"
+            "data_account_type_direct_costs", "expense_direct_cost"
+            "data_account_off_sheet", "off_balance"
+        ]
+
+        let sql = """
             with model_data as (
                 select name, res_id as id
                 from ir_model_data
@@ -385,8 +406,7 @@ type Service () =
             from account_account as aa
             join account_account_type as aat on aa.user_type_id = aat.id
             join model_data as md on aa.user_type_id = md.id
-            where company_id={ORIG_COMPANY_ID}
-            and aa.create_date > '2019-09-05'
+            where aa.create_uid <> 1
             and not (aa.code like '41%%' or aa.code like '43%%')
             or aa.code in ('430150')
             order by aa.code
@@ -397,7 +417,7 @@ type Service () =
                 reader.intOrNone "id" |> ResPartnerBank.exportId
                 reader.text "code"
                 reader.text "name"
-                "account." + reader.text "user_type_id"
+                accountTypeMap[reader.text "user_type_id"]
                 reader.boolOrNone "reconcile" |> orEmptyString
                 reader.int "last_visible_year" |> string
             ]
