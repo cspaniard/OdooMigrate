@@ -432,14 +432,12 @@ type Service () =
         let header = [ "id" ; "name" ; "code"; "type" ; "sequence"
                        "n43_date_type" ; "default_account_id" ; "refund_sequence" ]
 
-        let sql = $"""
+        let sql = """
             select aj.id, aj.name, aj.code, aj.type, aj.sequence, n43_date_type,
-                   case when aj.type in ('purchase', 'sale', 'bank', 'cash') then aa.code end account_id,
-                   case when aj.type in ('purchase', 'sale', 'bank', 'cash') then true else false end refund_sequence
+                   aa.code as account_id, refund_sequence
             from account_journal as aj
-            left join account_account as aa on aj.default_credit_account_id = aa.id
-            where aj.company_id={ORIG_COMPANY_ID}
-            and aj.code <> 'STJ'
+            left join account_account as aa on aj.default_account_id = aa.id
+            where aj.code <> 'STJ'
             """
 
         let readerFun (reader : RowReader) =
@@ -450,11 +448,7 @@ type Service () =
                 reader.text "type"
                 reader.int "sequence" |> string
                 reader.text "n43_date_type"
-
-                match reader.textOrNone "account_id" |> orEmptyString with
-                | "5729991" -> "572991"
-                | myval -> myval
-
+                reader.textOrNone "account_id" |> orEmptyString
                 reader.boolOrNone "refund_sequence" |> orEmptyString
             ]
 
