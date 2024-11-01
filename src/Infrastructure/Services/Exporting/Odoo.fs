@@ -214,11 +214,10 @@ type Service () =
 
         let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
                        "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
-                       "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company" ; "partner_share"
-                       "customer" ; "supplier"
-                       "commercial_partner_id" ; "commercial_company_name" ; "not_in_mod347"
+                       "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company"
+                       "customer" ; "supplier" ; "alternative_name" ; "bank_name"
+                       "not_in_mod347"
                        "sale_journal_id/id" ; "purchase_journal_id/id" ; "aeat_anonymous_cash_customer"
-                       "aeat_partner_vat" ; "aeat_partner_name" ; "aeat_data_diff"
                        "property_account_receivable_id" ; "property_account_payable_id"
                        "property_payment_term_id/id" ; "customer_payment_mode_id/id" ; "supplier_payment_mode_id/id"
                        "property_product_pricelist/id" ; "posicion fiscal" ]
@@ -284,10 +283,9 @@ type Service () =
             select rp.id, rp.name, rp.lang, rp.tz, rp.user_id, rp.parent_id,
                    rp.vat, rp.website, rp.comment, rp.type, rp.street, rp.street2, rp.zip, rp.city,
                    rcs.code as state_id, rp.country_id, rp.email, rp.phone, rp.mobile, rp.is_company,
-                   rp.partner_share, rp.commercial_partner_id, rp.commercial_company_name, rp.not_in_mod347,
+                   rp.not_in_mod347,
                    rp.sale_journal, rp.purchase_journal, rp.aeat_anonymous_cash_customer,
-                   rp.aeat_partner_vat, rp.aeat_partner_name, rp.aeat_data_diff,
-                   rp.customer, rp.supplier,
+                   rp.customer, rp.supplier, rp.alternative_name, rp.bank_name,
                    acc_rec.code as property_account_receivable_id, acc.code as property_account_payable_id,
                    apt.id as account_payment_term_id, rcpm.payment_mode_id as customer_payment_mode_id,
                    rspm.payment_mode_id as supplier_payment_mode_id,
@@ -338,22 +336,17 @@ type Service () =
                 reader.textOrNone "phone" |> orEmptyString
                 reader.textOrNone "mobile" |> orEmptyString
                 reader.bool "is_company" |> string
-                reader.bool "partner_share" |> string
 
                 reader.bool "customer" |> string
                 reader.bool "supplier" |> string
+                reader.textOrNone "alternative_name" |> orEmptyString
+                reader.textOrNone "bank_name" |> orEmptyString
 
-                reader.int "commercial_partner_id" |> string
-                reader.textOrNone "commercial_company_name" |> orEmptyString
                 reader.boolOrNone "not_in_mod347" |> orEmptyString
 
                 reader.intOrNone "sale_journal" |> AccountJournal.exportId
                 reader.intOrNone "purchase_journal" |> AccountJournal.exportId
                 reader.boolOrNone "aeat_anonymous_cash_customer" |> orEmptyString
-
-                reader.textOrNone "aeat_partner_vat" |> orEmptyString
-                reader.textOrNone "aeat_partner_name" |> orEmptyString
-                reader.boolOrNone "aeat_data_diff" |> orEmptyString
 
                 reader.textOrNone "property_account_receivable_id" |> Option.defaultValue "430000"
                 reader.textOrNone "property_account_payable_id" |> orEmptyString
