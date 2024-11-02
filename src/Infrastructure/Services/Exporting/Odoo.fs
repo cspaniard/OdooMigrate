@@ -421,16 +421,27 @@ type Service () =
 
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountJournal (modelName : string) =
+        Service.exportAccountJournal1 modelName
+        Service.exportAccountJournal2 modelName
+    //------------------------------------------------------------------------------------------------------------------
 
-        let header = [ "id" ; "name" ; "code"; "type" ; "sequence"
-                       "n43_date_type" ; "default_account_id" ; "refund_sequence" ]
+    //------------------------------------------------------------------------------------------------------------------
+    static member private exportAccountJournal1 (modelName : string) =
+
+        let header = [
+            "id" ; "name" ; "code"; "type" ; "sequence"
+            "bank_journal_id/id" ; "bank_cash_move_label"
+            "n43_date_type" ; "default_account_id" ; "refund_sequence"
+        ]
 
         let sql = """
-            select aj.id, aj.name, aj.code, aj.type, aj.sequence, n43_date_type,
-                   aa.code as account_id, refund_sequence
+            select aj.id, aj.name, aj.code, aj.type, aj.sequence, aj.bank_journal_id, aj.bank_cash_move_label,
+				   aj.sales_payment_mode_id, aj.buys_payment_mode_id,
+				   n43_date_type, aa.code as account_id, refund_sequence
             from account_journal as aj
             left join account_account as aa on aj.default_account_id = aa.id
             where aj.code <> 'STJ'
+            order by aj.bank_journal_id desc
             """
 
         let readerFun (reader : RowReader) =
@@ -440,13 +451,40 @@ type Service () =
                 reader.text "code"
                 reader.text "type"
                 reader.int "sequence" |> string
+
+                reader.intOrNone "bank_journal_id" |> AccountJournal.exportId
+                reader.textOrNone "bank_cash_move_label" |> orEmptyString
+
                 reader.text "n43_date_type"
                 reader.textOrNone "account_id" |> orEmptyString
                 reader.boolOrNone "refund_sequence" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
-        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+        |> IExcelBroker.exportFile $"{modelName}_1.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member private exportAccountJournal2 (modelName : string) =
+
+        let header = [ "id" ; "sales_payment_mode_id/id" ; "buys_payment_mode_id/id" ]
+
+        let sql = """
+            select aj.id, aj.sales_payment_mode_id, aj.buys_payment_mode_id
+            from account_journal as aj
+            where aj.code <> 'STJ'
+			and (aj.sales_payment_mode_id is not null or aj.buys_payment_mode_id is not null)
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> AccountJournal.exportId
+                reader.intOrNone "sales_payment_mode_id" |> AccountPaymentMode.exportId
+                reader.intOrNone "buys_payment_mode_id" |> AccountPaymentMode.exportId
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}_2.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------

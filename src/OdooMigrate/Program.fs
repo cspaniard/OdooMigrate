@@ -15,13 +15,15 @@ let exportList =
     [
         ("res_bank", IOdooExportService.exportResBank)
         ("res_partner_bank", IOdooExportService.exportResPartnerBank)
-        ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
+        // ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
+        ("account_account", IOdooExportService.exportAccountAccount)
+        ("account_journal", IOdooExportService.exportAccountJournal)
         ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
+        ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
         ("res_users", IOdooExportService.exportResUsers)
         ("res_partner", IOdooExportService.exportResPartner)
-        // ("account_account", IOdooExportService.exportAccountAccount)
-        // ("account_journal", IOdooExportService.exportAccountJournal)
-        // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
+
+        ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
         // ("product_pricelist", IOdooExportService.exportProductPriceList)
         // ("product_category_translation", IOdooExportService.exportProductCategoryTranslation)
         // ("product_category", IOdooExportService.exportProductCategory)
@@ -30,7 +32,6 @@ let exportList =
         // ("product_supplier_taxes", IOdooExportService.exportProductSupplierTaxes)
         // ("product_supplierinfo", IOdooExportService.exportProductSupplierInfo)
         // ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
-        // ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
         // ("account_opening_move_15", IOdooExportService.exportAccountOpeningMove)
         // ("ir_default", IOdooExportService.exportDefaultValues)
     ]
