@@ -2,7 +2,6 @@ namespace Services.Exporting.Odoo
 
 open System
 open System.Globalization
-open System.Runtime.Intrinsics.X86
 open Model
 open Model.Constants
 
@@ -43,6 +42,13 @@ type Service () =
     static let dateOrEmptyString (optVal : DateOnly option) =
         match optVal with
         | Some d -> d.ToString("yyyy-MM-dd")
+        | None -> ""
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static let dateTimeOrEmptyString (optVal : DateTime option) =
+        match optVal with
+        | Some d -> d.ToString("yyyy-MM-dd HH:mm:ss")
         | None -> ""
     //------------------------------------------------------------------------------------------------------------------
 
@@ -421,12 +427,12 @@ type Service () =
 
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountJournal (modelName : string) =
-        Service.exportAccountJournal1 modelName
-        Service.exportAccountJournal2 modelName
+        Service.exportAccountJournalBaseFields modelName
+        Service.exportAccountJournalPaymentModes modelName
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member private exportAccountJournal1 (modelName : string) =
+    static member private exportAccountJournalBaseFields (modelName : string) =
 
         let header = [
             "id" ; "name" ; "code"; "type" ; "sequence"
@@ -461,11 +467,11 @@ type Service () =
             ]
 
         header::ISqlBroker.getExportData sql readerFun
-        |> IExcelBroker.exportFile $"{modelName}_1.xlsx"
+        |> IExcelBroker.exportFile $"{modelName}_base_fields.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member private exportAccountJournal2 (modelName : string) =
+    static member private exportAccountJournalPaymentModes (modelName : string) =
 
         let header = [ "id" ; "sales_payment_mode_id/id" ; "buys_payment_mode_id/id" ]
 
@@ -484,7 +490,7 @@ type Service () =
             ]
 
         header::ISqlBroker.getExportData sql readerFun
-        |> IExcelBroker.exportFile $"{modelName}_2.xlsx"
+        |> IExcelBroker.exportFile $"{modelName}_payment_modes.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
@@ -1155,4 +1161,146 @@ type Service () =
 
         header::data
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportAccountMove (modelName : string) =
+
+        //------------------------------------------------------------------------------------------------------------------
+        let exportAccountMoveRelModel (modelName : string) (exportIdFun : ExportIdFun) (relFieldName : string) =
+
+            let sql = $"""
+                select id, {relFieldName}
+                from account_move
+                where {relFieldName} is not null
+                order by date;
+            """
+
+            let header = [ "id" ; $"{relFieldName}/id" ]
+
+            let readerFun (reader : RowReader) =
+                [
+                    reader.intOrNone "id" |> AccountMove.exportId
+                    reader.intOrNone relFieldName |> exportIdFun
+                ]
+
+            header::ISqlBroker.getExportData sql readerFun
+            |> IExcelBroker.exportFile $"{modelName}_{relFieldName}.xlsx"
+        //------------------------------------------------------------------------------------------------------------------
+
+        Service.exportAccountMoveBaseFields modelName
+
+        [
+            ("message_main_attachment_id", IrAttachment.exportId)
+            ("payment_id", AccountPayment.exportId)
+            ("payment_order_id", AccountPaymentOrder.exportId)
+            ("reversed_entry_id", AccountMove.exportId)
+            ("statement_line_id", AccountBankStatementLine.exportId)
+        ]
+        |> List.iter (fun (relModelName, exportId) -> exportAccountMoveRelModel modelName exportId relModelName)
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member private exportAccountMoveBaseFields (modelName : string) =
+
+        let sql = """
+            select
+                id, access_token, always_tax_exigible, amount_residual, amount_residual_signed,
+                amount_tax, amount_tax_signed, amount_total, amount_total_in_currency_signed,
+                amount_total_signed, amount_untaxed, amount_untaxed_signed, auto_post,
+                campaign_id, commercial_partner_id, company_id, create_date, create_uid,
+                currency_id, date, edi_state, financial_type, fiscal_position_id,
+                inalterable_hash, invoice_cash_rounding_id, invoice_date, invoice_date_due,
+                invoice_incoterm_id, invoice_origin, invoice_partner_display_name,
+                invoice_payment_term_id, invoice_source_email, invoice_user_id, is_move_sent,
+                journal_id, mandate_id, medium_id, message_main_attachment_id, move_type, name,
+                narration, not_in_mod347, partner_bank_id, partner_id, partner_shipping_id,
+                payment_id, payment_mode_id, payment_order_id, payment_reference, payment_state,
+                posted_before, qr_code_method, ref, reference_type, reversed_entry_id,
+                secure_sequence_number, sequence_number, sequence_prefix, source_id, state,
+                statement_line_id, stock_move_id, tax_cash_basis_origin_move_id,
+                tax_cash_basis_rec_id, team_id, thirdparty_invoice, thirdparty_number,
+                to_check, write_date, write_uid
+            from account_move
+            order by date;
+        """
+
+        let header = [
+            "id" ; "access_token" ; "always_tax_exigible" ; "amount_residual" ; "amount_residual_signed"
+            "amount_tax" ; "amount_tax_signed" ; "amount_total" ; "amount_total_in_currency_signed"
+            "amount_total_signed" ; "amount_untaxed" ; "amount_untaxed_signed" ; "auto_post" ; "campaign_id"
+            "commercial_partner_id/id" ; "company_id/.id" ; "currency_id/.id" ; "date"
+            "financial_type" ; "fiscal_position_id/.id" ; "invoice_date" ; "invoice_date_due"
+            "invoice_origin" ; "invoice_partner_display_name" ; "invoice_payment_term_id/id"
+            "invoice_source_email" ; "invoice_user_id/id" ; "is_move_sent" ; "journal_id/id"
+            "move_type" ; "name" ; "narration" ; "not_in_mod347" ; "partner_bank_id/id"
+            "partner_id/id" ; "partner_shipping_id/id" ; "payment_mode_id/id"
+            "payment_reference" ; "payment_state" ; "posted_before" ; "qr_code_method"
+            "ref" ; "reference_type" ; "secure_sequence_number" ; "sequence_number"
+            "sequence_prefix" ; "source_id" ; "state" ; "stock_move_id/id"
+            "tax_cash_basis_origin_move_id/id" ; "tax_cash_basis_rec_id/id" ; "team_id/.id"
+            "thirdparty_invoice" ; "thirdparty_number" ; "to_check"
+        ]
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> AccountMove.exportId
+                reader.textOrNone "access_token" |> orEmptyString
+                reader.bool "always_tax_exigible" |> string
+                reader.double "amount_residual" |> formatDecimal
+                reader.double "amount_residual_signed" |> formatDecimal
+                reader.double "amount_tax" |> formatDecimal
+                reader.double "amount_tax_signed" |> formatDecimal
+                reader.double "amount_total" |> formatDecimal
+                reader.double "amount_total_in_currency_signed" |> formatDecimal
+                reader.double "amount_total_signed" |> formatDecimal
+                reader.double "amount_untaxed" |> formatDecimal
+                reader.double "amount_untaxed_signed" |> formatDecimal
+                "No"         // auto_post
+                ""           // campaign_id
+                reader.intOrNone "commercial_partner_id" |> ResPartner.exportId
+                "1"          // company_id
+                "126"        // currency_id
+                reader.dateOnlyOrNone "date" |> dateOrEmptyString
+                reader.textOrNone "financial_type" |> orEmptyString
+                reader.intOrNone "fiscal_position_id" |> orEmptyString
+                reader.dateOnlyOrNone "invoice_date" |> dateOrEmptyString
+                reader.dateOnlyOrNone "invoice_date_due" |> dateOrEmptyString
+                reader.textOrNone "invoice_origin" |> orEmptyString
+                reader.textOrNone "invoice_partner_display_name" |> orEmptyString
+                reader.intOrNone "invoice_payment_term_id" |> AccountPaymentTerm.exportId
+                reader.textOrNone "invoice_source_email" |> orEmptyString
+                reader.intOrNone "invoice_user_id" |> ResUsers.exportId
+                "false"      // is_move_sent
+                reader.intOrNone "journal_id" |> AccountJournal.exportId
+                reader.text "move_type"
+                reader.text "name"
+                reader.textOrNone "narration" |> orEmptyString
+                reader.bool "not_in_mod347" |> string
+                reader.intOrNone "partner_bank_id" |> ResPartnerBank.exportId
+                reader.intOrNone "partner_id" |> ResPartner.exportId
+                reader.intOrNone "partner_shipping_id" |> ResPartner.exportId
+                reader.intOrNone "payment_mode_id" |> AccountPaymentMode.exportId
+                reader.textOrNone "payment_reference" |> orEmptyString
+                reader.textOrNone "payment_state" |> orEmptyString
+                reader.boolOrNone "posted_before" |> orEmptyString
+                reader.textOrNone "qr_code_method" |> orEmptyString
+                reader.textOrNone "ref" |> orEmptyString
+                reader.textOrNone "reference_type" |> orEmptyString
+                reader.intOrNone "secure_sequence_number" |> orEmptyString
+                reader.int "sequence_number" |> string
+                reader.text "sequence_prefix" |> string
+                reader.intOrNone "source_id" |> orEmptyString
+                "draft"                                 //  reader.text "state" |> string
+                reader.intOrNone "stock_move_id" |> orEmptyString
+                reader.intOrNone "tax_cash_basis_origin_move_id" |> orEmptyString
+                reader.intOrNone "tax_cash_basis_rec_id" |> orEmptyString
+                reader.int "team_id" |> string
+                reader.bool "thirdparty_invoice" |> string
+                reader.textOrNone "thirdparty_number" |> orEmptyString
+                reader.boolOrNone "to_check" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}_base_fields.xlsx"
     //------------------------------------------------------------------------------------------------------------------

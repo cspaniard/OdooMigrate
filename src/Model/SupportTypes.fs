@@ -24,8 +24,16 @@ module Helpers =
 
 open Helpers
 
+type ExportIdFun = int option -> string
+
 type Bank = Bank with
     static member exportId idOption = exportId "res_bank" idOption
+
+type AccountBankStatement = ResUsers with
+    static member exportId idOption = exportId "account_bank_statement" idOption
+
+type AccountBankStatementLine = ResUsers with
+    static member exportId idOption = exportId "account_bank_statement_line" idOption
 
 type ResUsers = ResUsers with
     static member exportId idOption = exportId "res_users" idOption
@@ -35,6 +43,15 @@ type ResPartner = ResPartner with
 
 type ResPartnerBank = ResPartnerBank with
     static member exportId idOption = exportId "res_partner_bank" idOption
+
+type AccountPayment = AccountPayment with
+    static member exportId idOption = exportId "account_payment" idOption
+
+type AccountPaymentOrder = AccountPaymentOrder with
+    static member exportId idOption = exportId "account_payment_order" idOption
+
+type AccountPaymentLine = AccountPaymentLine with
+    static member exportId idOption = exportId "account_payment_line" idOption
 
 type AccountPaymentTerm = AccountPaymentTerm with
     static member exportId idOption = exportId "account_payment_term" idOption
@@ -66,8 +83,14 @@ type AccountPaymentMode = AccountPaymentMode with
 type AccountOpeningMove = AccountOpeningMove with
     static member exportId idOption = exportId "account_opening_move" idOption
 
+type AccountMove= AccountMove with
+    static member exportId idOption = exportId "account_move" idOption
+
 type AccountMoveLine = AccountMoveLine with
     static member exportId idOption = exportId "account_move_line" idOption
 
 type DefaultValue = DefaultValue with
     static member exportId idOption = exportId "ir_default" idOption
+
+type IrAttachment = IrAttachment with
+    static member exportId idOption = exportId "ir_attachment" idOption
