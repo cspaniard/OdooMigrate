@@ -108,81 +108,90 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountPaymentTerm (modelName : string) =
 
-        let header = [ "id" ; "name" ; "note" ; "sequence"
-                       "line_ids/value" ; "line_ids/value_amount" ; "line_ids/nb_days"
-                       "line_ids/days_next_month" ; "line_ids/delay_type" ]
+        //--------------------------------------------------------------------------------------------------------------
+        let exportAccountPaymentTerm (modelName : string) =
+            let header = [ "id" ; "name" ; "note" ; "sequence" ]
 
-        let sql = $"""
-            select id, name, note, sequence
-            from account_payment_term
-            """
+            let sql = """
+                select id, name, note, sequence
+                from account_payment_term
+                """
 
-        let termReaderFun (reader : RowReader) =
-            [
-                reader.intOrNone "id" |> AccountPaymentTerm.exportId
-                reader.text "name"
-                $"""<p>{reader.textOrNone "note" |> Option.defaultValue (reader.text "name")}</p>"""
-                reader.int "sequence" |> string
+            let readerFun (reader : RowReader) =
+                [
+                    reader.intOrNone "id" |> AccountPaymentTerm.exportId
+                    reader.text "name"
+                    $"""<p>{reader.textOrNone "note" |> Option.defaultValue (reader.text "name")}</p>"""
+                    reader.int "sequence" |> string
+                ]
+
+            header::ISqlBroker.getExportData sql readerFun
+            |> IExcelBroker.exportFile $"{modelName}.xlsx"
+        //--------------------------------------------------------------------------------------------------------------
+
+        //--------------------------------------------------------------------------------------------------------------
+        let exportAccountPaymentTermLine (modelName : string) =
+
+            let header = [ "id" ; "payment_id/id" ; "value" ; "value_amount" ; "nb_days"
+                           "days_next_month" ; "delay_type" ]
+
+            let sql = """
+                select id, value, value_amount, days, day_of_the_month, option, payment_id, sequence
+                from account_payment_term_line
+                """
+
+            let delayTypeMap = Map.ofList [
+                "day_after_invoice_date", "days_after"
+                "day_following_month", "days_end_of_month_on_the"
             ]
 
-        let sqlForLines = """
-            select id, value, value_amount, days, day_of_the_month,
-                   option, payment_id, sequence
-            from account_payment_term_line
-            """
+            let readerFun (reader : RowReader) =
+                [
+                    reader.int "id" |> Some |> AccountPaymentTermLine.exportId
+                    reader.intOrNone "payment_id" |> AccountPaymentTerm.exportId
 
-        let delayTypeMap = Map.ofList [
-            "day_after_invoice_date", "days_after"
-            "day_following_month", "days_end_of_month_on_the"
-        ]
+                    let value = reader.text "value"
+                    if value = "balance" then "percent" else value
 
-        let termLineReaderFun (reader : RowReader) =
-            [
-                reader.intOrNone "payment_id" |> AccountPaymentTerm.exportId
+                    reader.doubleOrNone "value_amount" |> Option.defaultValue 0.0 |> string
+                    reader.int "days" |> string
 
-                let value = reader.text "value"
-                if value = "balance" then "percent" else value
+                    let dayOfTheMonth = reader.intOrNone "day_of_the_month" |> Option.defaultValue 0 |> string
+                    dayOfTheMonth
 
-                reader.doubleOrNone "value_amount" |> Option.defaultValue 0.0 |> string
-                reader.int "days" |> string
+                    if dayOfTheMonth = "0"
+                    then delayTypeMap[reader.text "option"]
+                    else "days_end_of_month_on_the"
+                ]
 
-                let dayOfTheMonth = reader.intOrNone "day_of_the_month" |> Option.defaultValue 0 |> string
-                dayOfTheMonth
+            let termLines =
 
-                if dayOfTheMonth = "0"
-                then delayTypeMap[reader.text "option"]
-                else "days_end_of_month_on_the"
-            ]
+                let updatePercentInRow (percentValue : string) (row : string list) =
+                    row
+                    |> List.mapi (fun i colVal -> if i = 2 then percentValue else colVal)
 
-        let terms = ISqlBroker.getExportData sql termReaderFun
-        let termLines =
-
-            let updatePercentInRow (percentValue : string) (row : string list) =
-                row
-                |> List.mapi (fun i colVal -> if i = 2 then percentValue else colVal)
-
-            let updatePercentInGroup = function
-                | [singleRow] ->
-                    [updatePercentInRow "100" singleRow]
-                | firstRow :: secondRow :: _ ->
-                    let value = decimal firstRow[2]
-                    [
-                        firstRow
-                        secondRow |> updatePercentInRow (string (100m - value))
-                    ]
-                | [] -> []
+                let updatePercentInGroup = function
+                    | [singleRow] ->
+                        [updatePercentInRow "100" singleRow]
+                    | firstRow :: secondRow :: _ ->
+                        let value = decimal firstRow[2]
+                        [
+                            firstRow
+                            secondRow |> updatePercentInRow (string (100m - value))
+                        ]
+                    | [] -> []
 
 
-            ISqlBroker.getExportData sqlForLines termLineReaderFun
-            |> List.groupBy List.head
-            |> List.collect (snd >> updatePercentInGroup)
+                ISqlBroker.getExportData sql readerFun
+                |> List.groupBy List.head
+                |> List.collect (snd >> updatePercentInGroup)
 
-        let joinData = [
-            for term in terms -> (term, termLines |> List.filter (fun termLine -> termLine[0] = term[0]))
-        ]
+            header::termLines
+            |> IExcelBroker.exportFile $"{modelName}_lines.xlsx"
+        //--------------------------------------------------------------------------------------------------------------
 
-        header::(flattenData joinData)
-        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+        exportAccountPaymentTerm modelName
+        exportAccountPaymentTermLine modelName
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------

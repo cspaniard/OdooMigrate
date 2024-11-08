@@ -59,6 +59,9 @@ type AccountPaymentLine = AccountPaymentLine with
 type AccountPaymentTerm = AccountPaymentTerm with
     static member exportId idOption = exportId "account_payment_term" idOption
 
+type AccountPaymentTermLine = AccountPaymentTermLine with
+    static member exportId idOption = exportId "account_payment_term_line" idOption
+
 type AccountJournal = AccountJournal with
     static member exportId idOption = exportId "account_journal" idOption
 
