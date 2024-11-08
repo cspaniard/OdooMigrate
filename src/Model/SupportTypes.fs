@@ -29,10 +29,13 @@ type ExportIdFun = int option -> string
 type Bank = Bank with
     static member exportId idOption = exportId "res_bank" idOption
 
-type AccountBankStatement = ResUsers with
+type AccountAccount = AccountAccount with
+    static member exportId idOption = exportId "account_account" idOption
+
+type AccountBankStatement = AccountBankStatement with
     static member exportId idOption = exportId "account_bank_statement" idOption
 
-type AccountBankStatementLine = ResUsers with
+type AccountBankStatementLine = AccountBankStatementLine with
     static member exportId idOption = exportId "account_bank_statement_line" idOption
 
 type ResUsers = ResUsers with

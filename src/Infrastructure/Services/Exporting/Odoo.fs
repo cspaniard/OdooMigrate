@@ -125,10 +125,10 @@ type Service () =
                 reader.int "sequence" |> string
             ]
 
-        let sqlForLines = $"""
+        let sqlForLines = """
             select id, value, value_amount, days, day_of_the_month,
                    option, payment_id, sequence
-            from {modelName}_line
+            from account_payment_term_line
             """
 
         let delayTypeMap = Map.ofList [
@@ -413,7 +413,7 @@ type Service () =
 
         let readerFun (reader : RowReader) =
             [
-                reader.intOrNone "id" |> ResPartnerBank.exportId
+                reader.intOrNone "id" |> AccountAccount.exportId
                 reader.text "code"
                 reader.text "name"
                 accountTypeMap[reader.text "user_type_id"]
@@ -1242,6 +1242,26 @@ type Service () =
             "thirdparty_invoice" ; "thirdparty_number" ; "to_check"
         ]
 
+        let header = [
+            "id" ; "access_token" ; "always_tax_exigible" ; "amount_residual" ; "amount_residual_signed"
+            "amount_tax" ; "amount_tax_signed" ; "amount_total" ; "amount_total_in_currency_signed"
+            "amount_total_signed" ; "amount_untaxed" ; "amount_untaxed_signed" ; "auto_post" ; "campaign_id"
+            "commercial_partner_id/id" ; "company_id/.id" ; "currency_id/.id" ; "date"
+            "financial_type" ; "fiscal_position_id/.id" ; "invoice_date" ; "invoice_date_due"
+            "invoice_origin" ; "invoice_partner_display_name" ; "invoice_payment_term_id/id"
+            "invoice_source_email" ; "invoice_user_id/id" ; "is_move_sent" ; "journal_id/id"
+            //"move_type" ; "name" ; "narration" ; "not_in_mod347" ; "partner_bank_id/id"
+            "name"
+            "partner_id/id"
+        ]
+
+        // let header = [
+        //     "id" ; "date"
+        //     "journal_id/id"
+        //     // "move_type"
+        //     "name" ; "partner_id/id"
+        // ]
+
         let readerFun (reader : RowReader) =
             [
                 reader.intOrNone "id" |> AccountMove.exportId
@@ -1273,34 +1293,82 @@ type Service () =
                 reader.intOrNone "invoice_user_id" |> ResUsers.exportId
                 "false"      // is_move_sent
                 reader.intOrNone "journal_id" |> AccountJournal.exportId
-                reader.text "move_type"
+                // reader.text "move_type"
                 reader.text "name"
-                reader.textOrNone "narration" |> orEmptyString
-                reader.bool "not_in_mod347" |> string
-                reader.intOrNone "partner_bank_id" |> ResPartnerBank.exportId
+                // reader.textOrNone "narration" |> orEmptyString
+                // reader.bool "not_in_mod347" |> string
+                // reader.intOrNone "partner_bank_id" |> ResPartnerBank.exportId
                 reader.intOrNone "partner_id" |> ResPartner.exportId
-                reader.intOrNone "partner_shipping_id" |> ResPartner.exportId
-                reader.intOrNone "payment_mode_id" |> AccountPaymentMode.exportId
-                reader.textOrNone "payment_reference" |> orEmptyString
-                reader.textOrNone "payment_state" |> orEmptyString
-                reader.boolOrNone "posted_before" |> orEmptyString
-                reader.textOrNone "qr_code_method" |> orEmptyString
-                reader.textOrNone "ref" |> orEmptyString
-                reader.textOrNone "reference_type" |> orEmptyString
-                reader.intOrNone "secure_sequence_number" |> orEmptyString
-                reader.int "sequence_number" |> string
-                reader.text "sequence_prefix" |> string
-                reader.intOrNone "source_id" |> orEmptyString
-                "draft"                                 //  reader.text "state" |> string
-                reader.intOrNone "stock_move_id" |> orEmptyString
-                reader.intOrNone "tax_cash_basis_origin_move_id" |> orEmptyString
-                reader.intOrNone "tax_cash_basis_rec_id" |> orEmptyString
-                reader.int "team_id" |> string
-                reader.bool "thirdparty_invoice" |> string
-                reader.textOrNone "thirdparty_number" |> orEmptyString
-                reader.boolOrNone "to_check" |> orEmptyString
+                // reader.intOrNone "partner_shipping_id" |> ResPartner.exportId
+                // reader.intOrNone "payment_mode_id" |> AccountPaymentMode.exportId
+                // reader.textOrNone "payment_reference" |> orEmptyString
+                // reader.textOrNone "payment_state" |> orEmptyString
+                // reader.boolOrNone "posted_before" |> orEmptyString
+                // reader.textOrNone "qr_code_method" |> orEmptyString
+                // reader.textOrNone "ref" |> orEmptyString
+                // reader.textOrNone "reference_type" |> orEmptyString
+                // reader.intOrNone "secure_sequence_number" |> orEmptyString
+                // reader.int "sequence_number" |> string
+                // reader.text "sequence_prefix" |> string
+                // reader.intOrNone "source_id" |> orEmptyString
+                // "draft"                                 //  reader.text "state" |> string
+                // reader.intOrNone "stock_move_id" |> orEmptyString
+                // reader.intOrNone "tax_cash_basis_origin_move_id" |> orEmptyString
+                // reader.intOrNone "tax_cash_basis_rec_id" |> orEmptyString
+                // reader.int "team_id" |> string
+                // reader.bool "thirdparty_invoice" |> string
+                // reader.textOrNone "thirdparty_number" |> orEmptyString
+                // reader.boolOrNone "to_check" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
+        |> List.take 50
         |> IExcelBroker.exportFile $"{modelName}_base_fields.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportIrAttachment (modelName : string) =
+
+        let header = [ "id" ; "res_model" ; "res_id/id" ; "name" ; "store_fname" ; "mimetype" ]
+
+        let sql ="""
+            select id, res_model, res_id, name, store_fname, mimetype
+            from ir_attachment
+            where res_model is not null
+            and res_model = 'account.move'
+            --and res_id = 30
+            --limit 3
+            order by res_model
+        """
+        let modelFunMap = Map.ofList [
+            ("account.bank.statement", AccountBankStatement.exportId)
+            ("account.move", AccountMove.exportId)
+            ("account.payment.order", AccountPaymentOrder.exportId)
+            // ("ir.ui.menu",
+            // ("ir.ui.view",
+            // ("l10n.es.aeat.mod303.report",
+            // ("l10n.es.aeat.mod347.report",
+            // ("mail.channel",
+            // ("payment.acquirer",
+            // ("payment.icon",
+            // ("res.company",
+            // ("res.lang",
+            // ("res.partner",
+        ]
+
+        let readerFun (reader : RowReader) =
+            [
+                let resModel = reader.text "res_model"
+
+                if modelFunMap.ContainsKey resModel then
+                    reader.intOrNone "id" |> IrAttachment.exportId
+                    resModel
+                    reader.int "res_id" |> Some |> modelFunMap[resModel]
+                    reader.text "name"
+                    reader.text "store_fname"
+                    reader.text "mimetype"
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------

@@ -13,11 +13,12 @@ IExcelBroker.init "/home/dsanroma/odoo_export/deysanka_15"
 
 let exportList =
     [
+        ("ir_attachment", IOdooExportService.exportIrAttachment)
         ("account_move", IOdooExportService.exportAccountMove)
-        // ("res_bank", IOdooExportService.exportResBank)
-        // ("res_partner_bank", IOdooExportService.exportResPartnerBank)
+        ("res_bank", IOdooExportService.exportResBank)
+        ("res_partner_bank", IOdooExportService.exportResPartnerBank)
         ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
-        // ("account_account", IOdooExportService.exportAccountAccount)
+        ("account_account", IOdooExportService.exportAccountAccount)
         // ("account_journal", IOdooExportService.exportAccountJournal)
         // ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
         // ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
@@ -25,14 +26,14 @@ let exportList =
         // ("res_partner", IOdooExportService.exportResPartner)
 
         // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
-        // ("product_pricelist", IOdooExportService.exportProductPriceList)
+        ("product_pricelist", IOdooExportService.exportProductPriceList)
+        ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
         // ("product_category_translation", IOdooExportService.exportProductCategoryTranslation)
         // ("product_category", IOdooExportService.exportProductCategory)
         // ("product_template", IOdooExportService.exportProductTemplate)
         // ("product_taxes", IOdooExportService.exportProductTaxes)
         // ("product_supplier_taxes", IOdooExportService.exportProductSupplierTaxes)
         // ("product_supplierinfo", IOdooExportService.exportProductSupplierInfo)
-        // ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
         // ("account_opening_move_15", IOdooExportService.exportAccountOpeningMove)
         // ("ir_default", IOdooExportService.exportDefaultValues)
     ]
