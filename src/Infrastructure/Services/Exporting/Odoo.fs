@@ -150,31 +150,40 @@ type Service () =
                     reader.int "id" |> Some |> AccountPaymentTermLine.exportId
                     reader.intOrNone "payment_id" |> AccountPaymentTerm.exportId
 
-                    let value = reader.text "value"
-                    if value = "balance" then "percent" else value
+                    match reader.text "value" with
+                    | "balance" -> "percent"
+                    | value -> value
 
                     reader.doubleOrNone "value_amount" |> Option.defaultValue 0.0 |> string
-                    reader.int "days" |> string
 
+                    let lineOption = reader.text "option"
+                    let days = reader.int "days" |> string
                     let dayOfTheMonth = reader.intOrNone "day_of_the_month" |> Option.defaultValue 0 |> string
+
+                    match lineOption with
+                    | "day_following_month" -> "0"
+                    | "day_after_invoice_date" when dayOfTheMonth <> "0" -> "0"
+                    | _ -> days
+
                     dayOfTheMonth
 
-                    if dayOfTheMonth = "0"
-                    then delayTypeMap[reader.text "option"]
-                    else "days_end_of_month_on_the"
+                    match lineOption with
+                    | "day_following_month" -> "days_after_end_of_next_month"
+                    | _ when dayOfTheMonth = "0" -> delayTypeMap[lineOption]
+                    | _ -> "days_end_of_month_on_the"
                 ]
 
             let termLines =
 
                 let updatePercentInRow (percentValue : string) (row : string list) =
                     row
-                    |> List.mapi (fun i colVal -> if i = 2 then percentValue else colVal)
+                    |> List.mapi (fun i colVal -> if i = 3 then percentValue else colVal)
 
                 let updatePercentInGroup = function
                     | [singleRow] ->
                         [updatePercentInRow "100" singleRow]
                     | firstRow :: secondRow :: _ ->
-                        let value = decimal firstRow[2]
+                        let value = decimal firstRow[3]
                         [
                             firstRow
                             secondRow |> updatePercentInRow (string (100m - value))
@@ -183,11 +192,11 @@ type Service () =
 
 
                 ISqlBroker.getExportData sql readerFun
-                |> List.groupBy List.head
+                |> List.groupBy (List.item 1)
                 |> List.collect (snd >> updatePercentInGroup)
 
             header::termLines
-            |> IExcelBroker.exportFile $"{modelName}_lines.xlsx"
+            |> IExcelBroker.exportFile $"{modelName}_line.xlsx"
         //--------------------------------------------------------------------------------------------------------------
 
         exportAccountPaymentTerm modelName
