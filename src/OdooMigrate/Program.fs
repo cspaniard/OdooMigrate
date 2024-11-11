@@ -13,12 +13,13 @@ IExcelBroker.init "/home/dsanroma/odoo_export/deysanka_15"
 
 let exportList =
     [
-        ("ir_attachment", IOdooExportService.exportIrAttachment)
-        ("account_move", IOdooExportService.exportAccountMove)
-        ("res_bank", IOdooExportService.exportResBank)
-        ("res_partner_bank", IOdooExportService.exportResPartnerBank)
-        ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
-        ("account_account", IOdooExportService.exportAccountAccount)
+        ("res_groups_users_rel", IOdooExportService.exportResGroupsUsersRel)
+        // ("ir_attachment", IOdooExportService.exportIrAttachment)
+        // ("account_move", IOdooExportService.exportAccountMove)
+        // ("res_bank", IOdooExportService.exportResBank)
+        // ("res_partner_bank", IOdooExportService.exportResPartnerBank)
+        // ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
+        // ("account_account", IOdooExportService.exportAccountAccount)
         // ("account_journal", IOdooExportService.exportAccountJournal)
         // ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
         // ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
@@ -26,8 +27,8 @@ let exportList =
         // ("res_partner", IOdooExportService.exportResPartner)
 
         // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
-        ("product_pricelist", IOdooExportService.exportProductPriceList)
-        ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
+        // ("product_pricelist", IOdooExportService.exportProductPriceList)
+        // ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
         // ("product_category_translation", IOdooExportService.exportProductCategoryTranslation)
         // ("product_category", IOdooExportService.exportProductCategory)
         // ("product_template", IOdooExportService.exportProductTemplate)

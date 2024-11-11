@@ -1390,3 +1390,44 @@ type Service () =
         header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportResGroupsUsersRel (modelName : string) =
+
+        let sql = $"""
+            select login
+            from res_users
+            where res_users.company_id={ORIG_COMPANY_ID}
+            and res_users.active = true
+            """
+
+        let userReaderFun (reader : RowReader) =
+            [
+                reader.text "login"
+            ]
+
+        let header = [ "login"; "category_name" ; "group_name" ]
+
+        let groupReaderFun (reader : RowReader) =
+            [
+                reader.text "login"
+                reader.textOrNone "category_name" |> orEmptyString
+                reader.text "group_name"
+            ]
+
+        for row in ISqlBroker.getExportData sql userReaderFun do
+            let login = row[0]
+
+            let sqlGroups = $"""
+                select ru.login, imc.name as category_name, rg.name as group_name
+                from res_groups as rg
+                join res_groups_users_rel as rgu on rg.id = rgu.gid
+                join res_users as ru on ru.id = rgu.uid
+                left join ir_module_category as imc on rg.category_id = imc.id
+                where ru.login = '{login}'
+                order by group_name
+            """
+
+            header::ISqlBroker.getExportData sqlGroups groupReaderFun
+            |> IExcelBroker.exportFile $"{modelName}_{login}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
