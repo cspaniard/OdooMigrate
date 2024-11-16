@@ -100,3 +100,9 @@ type DefaultValue = DefaultValue with
 
 type IrAttachment = IrAttachment with
     static member exportId idOption = exportId "ir_attachment" idOption
+
+type IrSequence = IrSequence with
+    static member exportId idOption = exportId "ir_sequence" idOption
+
+type IrSequenceDateRange = IrSequenceDateRange with
+    static member exportId idOption = exportId "ir_sequence_date_range" idOption

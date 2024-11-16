@@ -2,6 +2,7 @@ namespace Services.Exporting.Odoo
 
 open System
 open System.Globalization
+open DocumentFormat.OpenXml.EMMA
 open Model
 open Model.Constants
 
@@ -444,24 +445,19 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportAccountJournal (modelName : string) =
-        Service.exportAccountJournalBaseFields modelName
-        Service.exportAccountJournalPaymentModes modelName
-    //------------------------------------------------------------------------------------------------------------------
-
-    //------------------------------------------------------------------------------------------------------------------
-    static member private exportAccountJournalBaseFields (modelName : string) =
+    static member exportAccountJournalBaseFields (modelName : string) =
 
         let header = [
-            "id" ; "name" ; "code"; "type" ; "sequence"
+            "id" ; "name" ; "code"; "type" ; "sequence" ; "sequence_id/id"
             "bank_journal_id/id" ; "bank_cash_move_label"
-            "n43_date_type" ; "default_account_id" ; "refund_sequence"
+            "n43_date_type" ; "default_account_id" ; "refund_sequence/id"
         ]
 
         let sql = """
-            select aj.id, aj.name, aj.code, aj.type, aj.sequence, aj.bank_journal_id, aj.bank_cash_move_label,
+            select aj.id, aj.name, aj.code, aj.type, aj.sequence, aj.sequence_id,
+                   aj.bank_journal_id, aj.bank_cash_move_label,
 				   aj.sales_payment_mode_id, aj.buys_payment_mode_id,
-				   n43_date_type, aa.code as account_id, refund_sequence
+				   n43_date_type, aa.code as account_id, aj.refund_sequence
             from account_journal as aj
             left join account_account as aa on aj.default_account_id = aa.id
             where aj.code <> 'STJ'
@@ -475,6 +471,7 @@ type Service () =
                 reader.text "code"
                 reader.text "type"
                 reader.int "sequence" |> string
+                reader.intOrNone "sequence_id" |> IrSequence.exportId
 
                 reader.intOrNone "bank_journal_id" |> AccountJournal.exportId
                 reader.textOrNone "bank_cash_move_label" |> orEmptyString
@@ -485,11 +482,11 @@ type Service () =
             ]
 
         header::ISqlBroker.getExportData sql readerFun
-        |> IExcelBroker.exportFile $"{modelName}_base_fields.xlsx"
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member private exportAccountJournalPaymentModes (modelName : string) =
+    static member exportAccountJournalPaymentModes (modelName : string) =
 
         let header = [ "id" ; "sales_payment_mode_id/id" ; "buys_payment_mode_id/id" ]
 
@@ -508,7 +505,7 @@ type Service () =
             ]
 
         header::ISqlBroker.getExportData sql readerFun
-        |> IExcelBroker.exportFile $"{modelName}_payment_modes.xlsx"
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
@@ -546,10 +543,10 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductPriceList (modelName : string) =
 
-        let header = [ "id" ; "name" ; "sequence"; "discount_policy" ]
+        let header = [ "id" ; "name" ; "sequence"; "discount_policy" ; "active"]
 
         let sql = """
-            select ppl.id, ppl.name, ppl.sequence, ppl.discount_policy
+            select ppl.id, ppl.name, ppl.sequence, ppl.discount_policy, ppl.active
             from product_pricelist as ppl
             """
 
@@ -559,6 +556,7 @@ type Service () =
                 reader.text "name"
                 reader.intOrNone "sequence" |> orEmptyString
                 reader.textOrNone "discount_policy" |> orEmptyString
+                reader.boolOrNone "active" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -640,8 +638,7 @@ type Service () =
             left join rel_account_expense as rae on pt.id = rae.product_template_id
             left join account_account as aai on rai.account_id = aai.id
             left join account_account as aae on rae.account_id = aae.id
-            where pt.company_id = {ORIG_COMPANY_ID}
-            and pt.active = true
+            where pt.active = true
             order by pt.id
             """
 
@@ -1406,7 +1403,7 @@ type Service () =
                 reader.text "login"
             ]
 
-        let header = [ "login"; "category_name" ; "group_name" ]
+        let header = [ "login" ; "category_name" ; "group_name" ]
 
         let groupReaderFun (reader : RowReader) =
             [
@@ -1430,4 +1427,53 @@ type Service () =
 
             header::ISqlBroker.getExportData sqlGroups groupReaderFun
             |> IExcelBroker.exportFile $"{modelName}_{login}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportIrSequence (modelName : string) =
+
+        let header = [
+            "id" ; "active" ; "code" ; "implementation" ; "name" ; "number_increment"
+            "number_next" ; "padding" ; "prefix" ; "suffix" ; "use_date_range"
+        ]
+
+        let sql = "select * from ir_sequence"
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> IrSequence.exportId
+                reader.boolOrNone "active" |> orEmptyString
+                reader.textOrNone "code" |> orEmptyString
+                reader.text "implementation"
+                reader.text "name"
+                reader.int "number_increment" |> string
+                reader.int "number_next" |> string
+                reader.int "padding" |> string
+                reader.textOrNone "prefix" |> orEmptyString
+                reader.textOrNone "suffix" |> orEmptyString
+                reader.boolOrNone "use_date_range" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportIrSequenceDateRange (modelName : string) =
+
+        let header = [ "id" ; "date_from" ; "date_to" ; "sequence_id" ; "number_next" ]
+
+        let sql = "select * from ir_sequence_date_range order by date_from"
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> IrSequenceDateRange.exportId
+                reader.dateOnly "date_from" |> Some |> dateOrEmptyString
+                reader.dateOnly "date_to" |> Some |> dateOrEmptyString
+                reader.int "sequence_id" |> Some |> IrSequence.exportId
+                reader.int "number_next" |> string
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}_date_range.xlsx"
     //------------------------------------------------------------------------------------------------------------------
