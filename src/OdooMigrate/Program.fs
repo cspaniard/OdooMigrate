@@ -21,6 +21,7 @@ let exportList =
         ("account_journal_base_fields", IOdooExportService.exportAccountJournalBaseFields)
         ("account_journal_payment_modes", IOdooExportService.exportAccountJournalPaymentModes)
         ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
+        ("deysanka_res_config_settings", IOdooExportService.exportDeysankaResConfigSettings)
         // ("product_category", IOdooExportService.exportProductCategory)
         // ("product_template", IOdooExportService.exportProductTemplate)
         // ("product_pricelist", IOdooExportService.exportProductPriceList)
