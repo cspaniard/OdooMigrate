@@ -849,8 +849,10 @@ type Service () =
 
         let header =
             [
-                "id" ; "name" ; "bank_account_link" ; "fixed_journal_id/id" ; "payment_method_id/id"
-                "payment_order_ok" ; "default_payment_mode"
+                "id" ; "name" ; "bank_account_link" ; "fixed_journal_id/id"
+                "initiating_party_identifier" ; "initiating_party_issuer"
+                "initiating_party_scheme" ; "sepa_creditor_identifier"
+                "payment_method_id/id" ; "payment_order_ok" ; "default_payment_mode"
                 "default_invoice" ; "default_target_move" ; "default_date_type" ; "default_date_prefered"
                 "group_lines" ; "default_journal_ids/id" ; "variable_journal_ids/id"
             ]
@@ -875,6 +877,8 @@ type Service () =
             )
 
             select apm.id, apm.name, apm.bank_account_link, apm.fixed_journal_id,
+                   apm.initiating_party_identifier, apm.initiating_party_issuer,
+                   apm.initiating_party_scheme, apm.sepa_creditor_identifier,
                    (md.module || '.' || md.name) as payment_method_id, apm.payment_type,
                    apm.payment_method_code, apm.payment_order_ok,
                    apm.default_payment_mode, apm.default_invoice, apm.default_target_move,
@@ -893,6 +897,10 @@ type Service () =
                 reader.text "name"
                 reader.textOrNone "bank_account_link" |> orEmptyString
                 reader.intOrNone "fixed_journal_id" |> AccountJournal.exportId
+                reader.textOrNone "initiating_party_identifier" |> orEmptyString
+                reader.textOrNone "initiating_party_issuer" |> orEmptyString
+                reader.textOrNone "initiating_party_scheme" |> orEmptyString
+                reader.textOrNone "sepa_creditor_identifier" |> orEmptyString
                 reader.textOrNone "payment_method_id" |> orEmptyString
 
                 reader.boolOrNone "payment_order_ok" |> orEmptyString
