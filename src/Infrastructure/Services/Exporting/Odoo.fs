@@ -2,7 +2,7 @@ namespace Services.Exporting.Odoo
 
 open System
 open System.Globalization
-open DocumentFormat.OpenXml.EMMA
+open Motsoft.Util
 open Model
 open Model.Constants
 
@@ -486,7 +486,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportAccountJournalPaymentModes (modelName : string) =
+    static member exportAccountJournalPaymentMode (modelName : string) =
 
         let header = [ "id" ; "sales_payment_mode_id/id" ; "buys_payment_mode_id/id" ]
 
@@ -1489,15 +1489,44 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportDeysankaResConfigSettings (modelName : string) =
 
-        let header = [ "name" ; "value" ]
+        //--------------------------------------------------------------------------------------------------------------
+        let getValueAsString (readerFun :RowReader -> string) (record_id : int) (fieldName : string) : string =
+            let sql = $"""
+                select {fieldName}
+                from account_journal
+                where id = {record_id}
+            """
 
-        let sql = """
-            select *
-            from ir_config_parameter
-            where key ilike 'deysanka_account%'
-            order by key
-        """
+            ISqlBroker.getExportData sql readerFun
+            |> List.head
+        //--------------------------------------------------------------------------------------------------------------
 
+        //--------------------------------------------------------------------------------------------------------------
+        let getStringValue (record_id : int) (fieldName : string) : string =
+
+            let readerFun (reader : RowReader) =
+                reader.textOrNone fieldName |> orEmptyString
+
+            getValueAsString readerFun record_id fieldName
+        //--------------------------------------------------------------------------------------------------------------
+
+        //--------------------------------------------------------------------------------------------------------------
+        let getIntValueAsString (record_id : int) (fieldName : string) : string =
+
+            let readerFun (reader : RowReader) =
+                reader.intOrNone fieldName |> orEmptyString
+
+            getValueAsString readerFun record_id fieldName
+        //--------------------------------------------------------------------------------------------------------------
+
+        //--------------------------------------------------------------------------------------------------------------
+        let getIdFromData (data : string list list) (settingName : string) : int =
+            data
+            |> List.find (fun line -> line[0] = settingName)
+            |> fun line -> split "_" line[1] |> Array.last |> int
+        //--------------------------------------------------------------------------------------------------------------
+
+        //--------------------------------------------------------------------------------------------------------------
         let resConfigSettingsMap =                   // Nombre de ir.config.parameter --> nombre en res.config.settings
             Map [
                 "deysanka_account.bad_reconcile_exclude_accounts", "bad_reconcile_exclude_accounts"
@@ -1531,7 +1560,9 @@ type Service () =
                 "deysanka_account.web_sales_partner_id", "web_sales_partner_id"
                 "deysanka_account.web_sales_tpv_code", "web_sales_tpv_code"
             ]
+        //--------------------------------------------------------------------------------------------------------------
 
+        //--------------------------------------------------------------------------------------------------------------
         let exportFunMap =
             Map [
                 "bank_charges_client_journal_id", AccountJournal.exportId
@@ -1557,6 +1588,38 @@ type Service () =
                 "unpaid_inv_payment_mode_by_customer", AccountPaymentMode.exportId
                 "web_sales_partner_id", ResPartner.exportId
             ]
+        //--------------------------------------------------------------------------------------------------------------
+
+        //--------------------------------------------------------------------------------------------------------------
+        let getJournalConfigData (deyCashJournalId : int) (ebCashJournalId : int) =
+            [
+                [ "cash_statement_dey_bank_journal_id"
+                  getIntValueAsString deyCashJournalId "bank_journal_id" |> Some |> AccountJournal.exportId ]
+                [ "cash_statement_dey_cash_deposit_label"
+                  getStringValue deyCashJournalId "bank_cash_move_label" ]
+                [ "cash_statement_dey_sales_payment_mode_id"
+                  getIntValueAsString deyCashJournalId "sales_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_dey_buys_payment_mode_id"
+                  getIntValueAsString deyCashJournalId "buys_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_eb_bank_journal_id"
+                  getIntValueAsString ebCashJournalId "bank_journal_id" |> Some |> AccountJournal.exportId ]
+                [ "cash_statement_eb_cash_deposit_label"
+                  getStringValue ebCashJournalId "bank_cash_move_label" ]
+                [ "cash_statement_eb_sales_payment_mode_id"
+                  getIntValueAsString ebCashJournalId "sales_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_eb_buys_payment_mode_id"
+                  getIntValueAsString ebCashJournalId "buys_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
+            ]
+        //--------------------------------------------------------------------------------------------------------------
+
+        let header = [ "name" ; "value" ]
+
+        let sql = """
+            select *
+            from ir_config_parameter
+            where key ilike 'deysanka_account%'
+            order by key
+        """
 
         let readerFun (reader : RowReader) =
             [
@@ -1568,6 +1631,14 @@ type Service () =
                 else reader.text "value"
             ]
 
-        header::ISqlBroker.getExportData sql readerFun
+        let configData = header::ISqlBroker.getExportData sql readerFun
+
+        let deyCashJournalId = getIdFromData configData "cash_statement_dey_cash_journal_id"
+        let ebCashJournalId = getIdFromData configData "cash_statement_eb_cash_journal_id"
+
+        let journalConfigData = getJournalConfigData deyCashJournalId ebCashJournalId
+        printf $"%A{journalConfigData}"
+
+        configData @ journalConfigData
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------

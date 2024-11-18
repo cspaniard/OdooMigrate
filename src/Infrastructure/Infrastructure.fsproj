@@ -12,6 +12,7 @@
 
     <ItemGroup>
       <PackageReference Include="ClosedXML" Version="0.97.0" />
+      <PackageReference Include="Motsoft.Util" Version="1.9.0" />
       <PackageReference Include="Npgsql.FSharp" Version="5.4.0" />
     </ItemGroup>
 
