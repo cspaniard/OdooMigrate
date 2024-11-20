@@ -19,7 +19,7 @@ let exportList =
         // ("ir_sequence", IOdooExportService.exportIrSequenceDateRange)
         // ("account_account", IOdooExportService.exportAccountAccount)
         // ("account_journal_base_fields", IOdooExportService.exportAccountJournalBaseFields)
-        ("account_journal_payment_mode", IOdooExportService.exportAccountJournalPaymentMode)
+        // ("account_journal_payment_mode", IOdooExportService.exportAccountJournalPaymentMode)
         // ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
         // ("deysanka_res_config_settings", IOdooExportService.exportDeysankaResConfigSettings)
         // ("product_category", IOdooExportService.exportProductCategory)
@@ -32,7 +32,7 @@ let exportList =
         // ("res_bank", IOdooExportService.exportResBank)
         // ("res_partner_bank", IOdooExportService.exportResPartnerBank)
         // ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
-        // ("res_partner", IOdooExportService.exportResPartner)
+        ("res_partner", IOdooExportService.exportResPartner)
 
         // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
         // ("product_category_translation", IOdooExportService.exportProductCategoryTranslation)

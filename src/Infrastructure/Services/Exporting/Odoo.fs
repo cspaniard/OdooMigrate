@@ -237,17 +237,38 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportResPartner (modelName : string) =
 
+        //--------------------------------------------------------------------------------------------------------------
+        let getDefaultAccountCode (propertyName : string) : string =
+            let sql = $"""
+                with rel_payable as (
+                    select split_part(value_reference, ',', 2)::integer as account_id
+                    from ir_property
+                    where name = '{propertyName}'
+                    and res_id is null
+                )
+                select code
+                from account_account
+                join rel_payable on rel_payable.account_id = account_account.id
+                """
+
+            (ISqlBroker.getExportData sql (fun reader -> [ reader.text "code" ])).Head.Head
+        //--------------------------------------------------------------------------------------------------------------
+
+        //--------------------------------------------------------------------------------------------------------------
+        let defaultAccountReceivableCode = getDefaultAccountCode "property_account_receivable_id"
+        let defaultAccountPayableCode = getDefaultAccountCode "property_account_payable_id"
+        //--------------------------------------------------------------------------------------------------------------
+
         let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
                        "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
                        "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company"
-                       "customer" ; "supplier" ; "alternative_name" ; "bank_name"
-                       "not_in_mod347"
+                       "customer" ; "supplier" ; "alternative_name" ; "bank_name" ; "not_in_mod347"
                        "sale_journal_id/id" ; "purchase_journal_id/id" ; "aeat_anonymous_cash_customer"
                        "property_account_receivable_id" ; "property_account_payable_id"
                        "property_payment_term_id/id" ; "customer_payment_mode_id/id" ; "supplier_payment_mode_id/id"
-                       "property_product_pricelist/id" ; "posicion fiscal" ]
+                       "property_product_pricelist/id" ; "property_account_position_id/id" ]
 
-        let sql = $"""
+        let sql = """
             with
             rel_payable as (
                 select id, company_id,
@@ -315,7 +336,7 @@ type Service () =
                    apt.id as account_payment_term_id, rcpm.payment_mode_id as customer_payment_mode_id,
                    rspm.payment_mode_id as supplier_payment_mode_id,
                    rppl.product_pricelist as property_product_pricelist,
-                   afp.name as property_account_position
+                   'account.' || imd.name AS fiscal_position_external_id
             from res_partner as rp
             left join rel_payable as pay on rp.id = pay.partner_id
             left join rel_receivable as rec on rp.id = rec.partner_id
@@ -329,6 +350,7 @@ type Service () =
             left join rel_product_pricelist as rppl on rp.id = rppl.partner_id
             left join rel_account_position as rap on rp.id = rap.partner_id
             left join account_fiscal_position as afp on rap.account_position = afp.id
+            left join ir_model_data imd ON imd.model = 'account.fiscal.position' AND imd.res_id = afp.id
             where rp.customer is not null
             and rp.active = true
             or rp.name ilike 'Deysanka SL'
@@ -373,14 +395,14 @@ type Service () =
                 reader.intOrNone "purchase_journal" |> AccountJournal.exportId
                 reader.boolOrNone "aeat_anonymous_cash_customer" |> orEmptyString
 
-                reader.textOrNone "property_account_receivable_id" |> Option.defaultValue "430000"
-                reader.textOrNone "property_account_payable_id" |> orEmptyString
+                reader.textOrNone "property_account_receivable_id" |> Option.defaultValue defaultAccountReceivableCode
+                reader.textOrNone "property_account_payable_id" |> Option.defaultValue defaultAccountPayableCode
 
                 reader.intOrNone "account_payment_term_id" |> AccountPaymentTerm.exportId
                 reader.intOrNone "customer_payment_mode_id" |> AccountPaymentMode.exportId
                 reader.intOrNone "supplier_payment_mode_id" |> AccountPaymentMode.exportId
                 reader.intOrNone "property_product_pricelist" |> ProductPriceList.exportId
-                reader.stringOrNone "property_account_position" |> orEmptyString
+                reader.stringOrNone "fiscal_position_external_id" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -1225,6 +1247,8 @@ type Service () =
 
     //------------------------------------------------------------------------------------------------------------------
     static member private exportAccountMoveBaseFields (modelName : string) =
+
+        failwith "Hay que arreglar lo la AEAT con left join y detectar el external_id."
 
         let sql = """
             select
