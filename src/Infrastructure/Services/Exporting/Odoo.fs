@@ -586,6 +586,92 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
+    static member exportProductCategory (modelName : string) =
+
+        let header = [ "id/.id" ; "id" ; "name" ; "complete_name"; "parent_id/.id"
+                       "parent_path" ; "removal_strategy_id/id" ; "packaging_reserve_method"
+                       "allow_negative_stock" ; "property_cost_method"
+                       "property_account_income_categ_id" ; "property_account_expense_categ_id"]
+
+        let sql = """
+            with
+            rel_account_expense as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as category_id,
+                       split_part(value_reference, ',', 2)::integer as account_id
+                from ir_property
+                where name = 'property_account_expense_categ_id'
+                and res_id is not null
+            ),
+            rel_account_income as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as category_id,
+                       split_part(value_reference, ',', 2)::integer as account_id
+                from ir_property
+                where name = 'property_account_income_categ_id'
+                and res_id is not null
+            ),
+            rel_cost_method as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as category_id,
+                       value_text as property_cost_method
+                from ir_property
+                where name = 'property_cost_method'
+                and res_id is not null
+            ),
+            rel_product_removal as (
+                select res_id as category_id, imd.module || '.' || imd.name as external_id
+                from ir_model_data as imd
+                join product_removal
+                on imd.res_id = product_removal.id
+                where imd.model = 'product.removal'
+            ),
+            rel_product_category as (
+                select res_id as category_id, imd.module || '.' || imd.name as external_id
+                from ir_model_data as imd
+                join product_removal
+                on imd.res_id = product_removal.id
+                where imd.model = 'product.category'
+            )
+            select rpr.external_id as removal_external_id, rpc.external_id as category_external_id,
+                   rcm.property_cost_method, aai.code as property_account_income_categ_id,
+                   aae.code as property_account_expense_categ_id, pc.*
+            from product_category as pc
+            left join rel_product_removal as rpr on pc.removal_strategy_id = rpr.category_id
+            left join rel_product_category as rpc on pc.id = rpc.category_id
+            left join rel_cost_method as rcm on pc.id = rcm.category_id
+            left join rel_account_income as rai on pc.id = rai.category_id
+            left join rel_account_expense as rae on pc.id = rai.category_id
+            left join account_account as aai on rai.account_id = aai.id
+            left join account_account as aae on rae.account_id = aae.id
+            order by pc.id
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> string
+
+                match reader.textOrNone "category_external_id" with
+                | Some category_external_id when category_external_id.StartsWith "product." -> category_external_id
+                | _ -> reader.intOrNone "id" |> ProductCategory.exportId
+
+                reader.text "name"
+                reader.text "complete_name"
+                reader.intOrNone "parent_id" |> orEmptyString
+                reader.text "parent_path"
+                reader.text "removal_external_id"
+                reader.text "packaging_reserve_method"
+                reader.boolOrNone "allow_negative_stock" |> orEmptyString
+                reader.textOrNone "property_cost_method" |> orEmptyString
+                reader.textOrNone "property_account_income_categ_id" |> orEmptyString
+                reader.textOrNone "property_account_expense_categ_id" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
     static member exportProductCategoryTranslation (modelName : string) =
 
         [
@@ -598,31 +684,6 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportProductCategory (modelName : string) =
-
-        let header = [ "id" ; "parent_path" ; "name" ; "complete_name"; "parent_id/.id" ; "allow_negative_stock" ]
-
-        let sql = """
-            select pg.id, pg.parent_path, pg.name, pg.complete_name, pg.parent_id, pg.allow_negative_stock
-            from product_category as pg
-            where pg.id > 3
-            """
-
-        let readerFun (reader : RowReader) =
-            [
-                reader.intOrNone "id" |> ProductCategory.exportId
-                reader.text "parent_path"
-                reader.text "name"
-                reader.text "complete_name"
-                reader.intOrNone "parent_id" |> orEmptyString
-                reader.boolOrNone "allow_negative_stock" |> orEmptyString
-            ]
-
-        header::ISqlBroker.getExportData sql readerFun
-        |> IExcelBroker.exportFile $"{modelName}.xlsx"
-    //------------------------------------------------------------------------------------------------------------------
-
-    //------------------------------------------------------------------------------------------------------------------
     static member exportProductTemplate (modelName : string) =
 
         let header = [ "id" ; "name" ; "default_code" ; "sequence" ; "type" ; "categ_id" ; "list_price"
@@ -631,7 +692,7 @@ type Service () =
                        "invoice_policy" ; "purchase_line_warn_msg" ; "allow_negative_stock"
                        "property_account_income_id" ; "property_account_expense_id" ]
 
-        let sql = $"""
+        let sql = """
             with
             rel_account_income as (
                 select id, company_id,
