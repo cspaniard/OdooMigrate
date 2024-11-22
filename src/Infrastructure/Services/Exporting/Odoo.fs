@@ -672,18 +672,6 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportProductCategoryTranslation (modelName : string) =
-
-        [
-            [ "id" ; "name" ]
-            [ "product.product_category_all" ; "Todos" ]
-            [ "product.cat_expense" ; "Gastos" ]
-            [ "product.product_category_1" ; "Vendible" ]
-        ]
-        |> IExcelBroker.exportFile $"{modelName}.xlsx"
-    //------------------------------------------------------------------------------------------------------------------
-
-    //------------------------------------------------------------------------------------------------------------------
     static member exportProductTemplate (modelName : string) =
 
         let header = [ "id" ; "name" ; "default_code" ; "sequence" ; "type" ; "categ_id" ; "list_price"

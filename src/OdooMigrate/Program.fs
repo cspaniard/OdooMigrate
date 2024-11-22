@@ -23,7 +23,6 @@ let exportList =
         // ("account_payment_mode", IOdooExportService.exportAccountPaymentMode)
         // ("deysanka_res_config_settings", IOdooExportService.exportDeysankaResConfigSettings)
         ("product_category", IOdooExportService.exportProductCategory)
-        ("product_category_translation", IOdooExportService.exportProductCategoryTranslation)
         // ("product_template", IOdooExportService.exportProductTemplate)
         // ("product_pricelist", IOdooExportService.exportProductPriceList)
         // ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
