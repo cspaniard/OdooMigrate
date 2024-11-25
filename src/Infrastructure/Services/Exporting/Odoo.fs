@@ -674,14 +674,45 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductTemplate (modelName : string) =
 
-        let header = [ "id" ; "name" ; "default_code" ; "sequence" ; "type" ; "categ_id" ; "list_price"
-                       "sale_ok" ; "purchase_ok" ; "active" ; "sale_delay" ; "tracking"
-                       "service_type" ; "sale_line_warn" ; "expense_policy" ; "purchase_method"
-                       "invoice_policy" ; "purchase_line_warn_msg" ; "allow_negative_stock"
-                       "property_account_income_id" ; "property_account_expense_id" ]
+        let header = [
+            "id" ; "name" ; "default_code" ; "sequence" ; "detailed_type" ; "categ_id/id" ; "list_price"
+            "sale_ok" ; "purchase_ok" ; "active" ; "sale_delay"
+            "description" ; "description_picking" ;  "description_pickingin" ; "description_pickingout"
+            "description_purchase" ; "description_sale"
+            "purchase_line_warn" ; "purchase_line_warn_msg" ; "sale_line_warn" ; "sale_line_warn_msg" ;
+            "tracking" ; "use_expiration_date" ; "expiration_time" ; "use_time" ; "removal_time" ; "alert_time"
+            "responsible_id/id" ; "service_type" ; "expense_policy" ; "purchase_method"
+            "invoice_policy" ; "allow_negative_stock"
+            "property_account_income_id" ; "property_account_expense_id"
+            "barcode" ; "volume" ; "weight"
+        ]
 
         let sql = """
-            with
+			with
+			rel_product_product as (
+				select product_tmpl_id, barcode, volume, weight
+				from product_product
+			),
+            rel_product_responsible as (
+                select id, company_id,
+                       split_part(res_id, ',', 2)::integer as product_template_id,
+                       split_part(value_reference, ',', 2)::integer as responsible_id
+                from ir_property
+                where name = 'responsible_id'
+                and res_id is not null
+            ),
+			rel_res_users as (
+				select module, model, res_id, module || '.' || name as external_id
+				from ir_model_data
+				where model = 'res.users'
+				and module not like '\_\_%'
+			),
+			rel_product_category as (
+				select module, model, res_id, module || '.' || name as external_id
+				from ir_model_data
+				where model = 'product.category'
+				and module not like '\_\_%'
+            ),
             rel_account_income as (
                 select id, company_id,
                        split_part(res_id, ',', 2)::integer as product_template_id,
@@ -698,18 +729,28 @@ type Service () =
                 where name = 'property_account_expense_id'
                 and res_id is not null
             )
-            select pt.id, pt.name, pt.default_code, pt.sequence, pt.type, pc.complete_name as categ_id,
-                   pt.list_price, pt.sale_ok, pt.purchase_ok, pt.active, pt.sale_delay, pt.tracking,
-                   pt.service_type, pt.sale_line_warn, pt.expense_policy, pt.purchase_method,
-                   pt.invoice_policy, pt.purchase_line_warn_msg, pt.allow_negative_stock,
-                   aai.code as property_account_income_id, aae.code as property_account_expense_id
+            select pt.id, pt.name, pt.default_code, pt.sequence, pt.detailed_type,
+			       pt.categ_id as categ_id_id, rpc.external_id as categ_id,
+                   pt.list_price, pt.sale_ok, pt.purchase_ok, pt.active, pt.sale_delay,
+                   pt.description, pt.description_picking, pt.description_pickingin,
+                   pt.description_pickingout, pt.description_purchase, pt.description_sale,
+                   pt.purchase_line_warn, pt.purchase_line_warn_msg, pt.sale_line_warn, pt.sale_line_warn_msg,
+				   pt.tracking, pt.use_expiration_date, pt.expiration_time,
+				   pt.use_time, pt.removal_time, pt.alert_time,
+				   rpr.responsible_id, rru.external_id as responsible_external_id,
+                   pt.service_type, pt.expense_policy, pt.purchase_method,
+                   pt.invoice_policy, pt.allow_negative_stock,
+                   aai.code as property_account_income_id, aae.code as property_account_expense_id,
+				   rpp.barcode, rpp.volume, rpp.weight
             from product_template as pt
-            left join product_category as pc on pt.categ_id = pc.id
             left join rel_account_income as rai on pt.id = rai.product_template_id
             left join rel_account_expense as rae on pt.id = rae.product_template_id
             left join account_account as aai on rai.account_id = aai.id
             left join account_account as aae on rae.account_id = aae.id
-            where pt.active = true
+			left join rel_product_category as rpc on pt.categ_id = rpc.res_id
+			left join rel_product_responsible as rpr on pt.id = rpr.product_template_id
+			left join rel_res_users as rru on rpr.responsible_id = rru.res_id
+			left join rel_product_product as rpp on pt.id = rpp.product_tmpl_id
             order by pt.id
             """
 
@@ -719,27 +760,55 @@ type Service () =
                 reader.text "name"
                 reader.textOrNone "default_code" |> orEmptyString
                 reader.intOrNone "sequence" |> orEmptyString
-                reader.textOrNone "type" |> orEmptyString
-                reader.textOrNone "categ_id" |> orEmptyString
+                reader.textOrNone "detailed_type" |> orEmptyString
+
+                match reader.textOrNone "categ_id" with
+                | Some categ_id -> categ_id
+                | None -> reader.intOrNone "categ_id_id" |> ProductCategory.exportId
+
                 (reader.double "list_price") |> formatDecimal
 
                 reader.bool "sale_ok" |> string
                 reader.bool "purchase_ok" |> string
                 reader.bool "active" |> string
                 (reader.double "sale_delay").ToString("#####")
+
+                reader.textOrNone "description" |> orEmptyString
+                reader.textOrNone "description_picking" |> orEmptyString
+                reader.textOrNone "description_pickingin" |> orEmptyString
+                reader.textOrNone "description_pickingout" |> orEmptyString
+                reader.textOrNone "description_purchase" |> orEmptyString
+                reader.textOrNone "description_sale" |> orEmptyString
+
+                reader.textOrNone "purchase_line_warn" |> orEmptyString
+                reader.textOrNone "purchase_line_warn_msg" |> orEmptyString
+                reader.textOrNone "sale_line_warn" |> orEmptyString
+                reader.textOrNone "sale_line_warn_msg" |> orEmptyString
+
                 reader.text "tracking"
+                reader.boolOrNone "use_expiration_date" |> orEmptyString
+                reader.intOrNone "expiration_time" |> orEmptyString
+                reader.intOrNone "use_time" |> orEmptyString
+                reader.intOrNone "removal_time" |> orEmptyString
+                reader.intOrNone "alert_time" |> orEmptyString
+
+                match reader.textOrNone "responsible_external_id" with
+                | Some responsible_external_id -> responsible_external_id
+                | None -> reader.intOrNone "responsible_id" |> ResUsers.exportId
 
                 reader.textOrNone "service_type" |> orEmptyString
-                reader.textOrNone "sale_line_warn" |> orEmptyString
                 reader.textOrNone "expense_policy" |> orEmptyString
                 reader.textOrNone "purchase_method" |> orEmptyString
 
                 reader.textOrNone "invoice_policy" |> orEmptyString
-                reader.textOrNone "purchase_line_warn_msg" |> orEmptyString
                 reader.boolOrNone "allow_negative_stock" |> orEmptyString
 
                 reader.textOrNone "property_account_income_id" |> orEmptyString
                 reader.textOrNone "property_account_expense_id" |> orEmptyString
+
+                reader.textOrNone "barcode" |> orEmptyString
+                reader.doubleOrNone "volume" |> orEmptyString
+                reader.doubleOrNone "weight" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
