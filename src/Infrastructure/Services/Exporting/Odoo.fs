@@ -880,25 +880,33 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductSupplierInfo (modelName : string) =
 
-        let header = [ "id" ; "name/id" ; "price" ; "date_start" ; "date_end" ; "product_tmpl_id/id" ]
+        let header = [
+            "id" ; "partner_id/id" ; "product_name" ; "product_code" ; "sequence" ; "min_qty" ; "price"
+            "company_id/.id" ; "currency_id/.id" ; "date_start" ; "date_end" ; "product_tmpl_id/id" ; "delay"
+        ]
 
-        let sql = $"""
-            select psi.id, psi.name, psi.price, date_start, date_end, psi.product_tmpl_id
-            from product_supplierinfo as psi
-            join product_template as pt on psi.product_tmpl_id = pt.id
-            where psi.company_id = {ORIG_COMPANY_ID}
-            and pt.active = true
-            order by psi.product_tmpl_id
+        let sql = """
+            select ps.*
+            from product_supplierinfo ps
+            left join res_partner as rp on ps.name = rp.id
+            order by ps.id
             """
 
         let readerFun (reader : RowReader) =
             [
                 reader.intOrNone "id" |> ProductSupplierInfo.exportId
                 reader.intOrNone "name" |> ResPartner.exportId
+                reader.textOrNone "product_name" |> orEmptyString
+                reader.textOrNone "product_code" |> orEmptyString
+                reader.intOrNone "sequence" |> orEmptyString
+                (reader.double "min_qty").ToString("###0.00", CultureInfo.InvariantCulture)
                 (reader.double "price").ToString("###0.00", CultureInfo.InvariantCulture)
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.intOrNone "currency_id" |> orEmptyString
                 reader.dateOnlyOrNone "date_start" |> dateOrEmptyString
                 reader.dateOnlyOrNone "date_end" |> dateOrEmptyString
                 reader.intOrNone "product_tmpl_id" |> ProductTemplate.exportId
+                reader.int "delay" |> string
             ]
 
         header::ISqlBroker.getExportData sql readerFun
