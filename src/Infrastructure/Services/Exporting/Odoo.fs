@@ -818,27 +818,28 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductTaxes (modelName : string) =
 
-        let header = [ "id" ; "taxes_id" ]
+        let header = [ "id" ; "tax_id/id" ]
 
-        let sql = $"""
-            select pt.id,
-            case when at.name = 'IVA Exento Repercutido'
-                then 'IVA Exento Repercutido Sujeto'
-            else at.name
-            end taxes_id
-
+        let sql = """
+            with
+			rel_taxes as (
+				select module, model, res_id as tax_id, module || '.' || name as external_id
+				from ir_model_data
+				where model = 'account.tax'
+			)
+            select pt.id, rt.external_id as tax_id
             from product_template as pt
             left join product_taxes_rel as ptr on pt.id = ptr.prod_id
-            left join account_tax as at on ptr.tax_id = at.id
-            where pt.company_id = {ORIG_COMPANY_ID}
-            and pt.active = true
+			left join rel_taxes as rt on ptr.tax_id = rt.tax_id
             order by pt.id
             """
 
         let readerFun (reader : RowReader) =
             [
                 reader.intOrNone "id" |> ProductTemplate.exportId
-                reader.textOrNone "taxes_id" |> orEmptyString
+                match reader.textOrNone "tax_id" with
+                | Some tax_id -> tax_id.Replace("l10n_es.", "account.")
+                | None -> ""
             ]
 
         header::ISqlBroker.getExportData sql readerFun

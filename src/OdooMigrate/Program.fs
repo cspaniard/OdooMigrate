@@ -25,7 +25,8 @@ let exportList =
         // ("stock_warehouse", IOdooExportService.exportStockWarehouse)
         // ("deysanka_res_config_settings", IOdooExportService.exportDeysankaResConfigSettings)
         // ("product_category", IOdooExportService.exportProductCategory)
-        ("product_template", IOdooExportService.exportProductTemplate)
+        // ("product_template", IOdooExportService.exportProductTemplate)
+        ("product_taxes", IOdooExportService.exportProductTaxes)
         // ("product_pricelist", IOdooExportService.exportProductPriceList)
         // ("product_pricelist_item", IOdooExportService.exportProductPriceListItem)
         // ("account_payment_method", IOdooExportService.exportAccountPaymentMethod)
@@ -37,7 +38,6 @@ let exportList =
         // ("res_partner", IOdooExportService.exportResPartner)
 
         // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
-        // ("product_taxes", IOdooExportService.exportProductTaxes)
         // ("product_supplier_taxes", IOdooExportService.exportProductSupplierTaxes)
         // ("product_supplierinfo", IOdooExportService.exportProductSupplierInfo)
         // ("account_opening_move_15", IOdooExportService.exportAccountOpeningMove)
