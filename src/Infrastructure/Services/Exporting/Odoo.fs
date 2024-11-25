@@ -849,22 +849,28 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductSupplierTaxes (modelName : string) =
 
-        let header = [ "id" ; "supplier_taxes_id" ]
+        let header = [ "id" ; "tax_id/id" ]
 
-        let sql = $"""
-            select pt.id, at.name as taxes_id
+        let sql = """
+            with
+			rel_taxes as (
+				select module, model, res_id as tax_id, module || '.' || name as external_id
+				from ir_model_data
+				where model = 'account.tax'
+			)
+            select pt.id, rt.external_id as tax_id
             from product_template as pt
             left join product_supplier_taxes_rel as pstr on pt.id = pstr.prod_id
-            left join account_tax as at on pstr.tax_id = at.id
-            where pt.company_id = {ORIG_COMPANY_ID}
-            and pt.active = true
+			left join rel_taxes as rt on pstr.tax_id = rt.tax_id
             order by pt.id
             """
 
         let readerFun (reader : RowReader) =
             [
                 reader.intOrNone "id" |> ProductTemplate.exportId
-                reader.textOrNone "taxes_id" |> orEmptyString
+                match reader.textOrNone "tax_id" with
+                | Some tax_id -> tax_id.Replace("l10n_es.", "account.")
+                | None -> ""
             ]
 
         header::ISqlBroker.getExportData sql readerFun
