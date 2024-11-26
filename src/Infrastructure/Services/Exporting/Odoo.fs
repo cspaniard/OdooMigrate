@@ -1801,6 +1801,77 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
+    static member exportStockLocation (modelName : string) =
+
+        let header = [
+            "id/.id" ; "id" ; "name" ; "complete_name" ; "active" ; "usage" ; "location_id/.id" ;
+            "comment" ; "posx" ; "posy" ; "posz" ; "parent_path" ; "company_id/.id" ;
+            "scrap_location" ; "return_location" ; "removal_strategy_id/id" ; "barcode" ;
+            "cyclic_inventory_frequency" ; "last_inventory_date" ; "next_inventory_date" ;
+            "storage_category_id" ; "valuation_in_account_id" ; "valuation_out_account_id" ;
+            "allow_negative_stock"
+        ]
+
+        let sql = """
+            with
+            rel_removal_strategy as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'product.removal'
+                and module not like '\_\_%'
+            ),
+            rel_location as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.location'
+                and module not like '\_\_%'
+            )
+            select rl.module as module, rl.external_id as location_external_id,
+                   rrs.external_id as removal_external_id,
+                   sl.*
+            from stock_location as sl
+            left join rel_location as rl on sl.id = rl.id
+            left join rel_removal_strategy as rrs on sl.id = rrs.id
+            order by id
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> string
+
+                match reader.textOrNone "location_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "id" |> Some |> StockLocation.exportId
+
+                reader.text "name"
+                reader.text "complete_name"
+                reader.bool "active" |> string
+                reader.text "usage"
+                reader.intOrNone "location_id" |> orEmptyString
+                reader.textOrNone "comment" |> orEmptyString
+                reader.int "posx" |> string
+                reader.int "posy" |> string
+                reader.int "posz" |> string
+                reader.text "parent_path"
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.boolOrNone "scrap_location" |> orEmptyString
+                reader.boolOrNone "return_location" |> orEmptyString
+                reader.textOrNone "removal_external_id" |> orEmptyString
+                reader.textOrNone "barcode" |> orEmptyString
+                reader.intOrNone "cyclic_inventory_frequency" |> orEmptyString
+                reader.dateOnlyOrNone "last_inventory_date" |> dateOrEmptyString
+                reader.dateOnlyOrNone "next_inventory_date" |> dateOrEmptyString
+                reader.intOrNone "storage_category_id" |> orEmptyString
+                reader.intOrNone "valuation_in_account_id" |> AccountAccount.exportId
+                reader.intOrNone "valuation_out_account_id" |> AccountAccount.exportId
+                reader.boolOrNone "allow_negative_stock" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
     static member exportStockPickingType (modelName : string) =
 
         let header = [
