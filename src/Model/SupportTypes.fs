@@ -106,3 +106,12 @@ type IrSequence = IrSequence with
 
 type IrSequenceDateRange = IrSequenceDateRange with
     static member exportId idOption = exportId "ir_sequence_date_range" idOption
+
+type StockLocation = StockLocation with
+    static member exportId idOption = exportId "stock_location" idOption
+
+type StockPickingType = StockPickingType with
+    static member exportId idOption = exportId "stock_picking_type" idOption
+
+type StockWarehouse = StockWarehouse with
+    static member exportId idOption = exportId "stock_warehouse" idOption

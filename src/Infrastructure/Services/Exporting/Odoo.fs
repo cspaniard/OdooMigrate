@@ -1799,3 +1799,67 @@ type Service () =
         configData @ journalConfigData
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportStockPickingType (modelName : string) =
+
+        let header = [
+            "id" ; "name" ; "color" ; "sequence" ; "sequence_id/id" ; "sequence_code" ; "default_location_src_id/id"
+            "default_location_dest_id/id" ; "code" ; "return_picking_type_id/id" ; "show_entire_packs"
+            "warehouse_id/id" ; "active" ; "use_create_lots" ; "use_existing_lots" ; "print_label"
+            "show_operations" ; "show_reserved" ; "reservation_method" ; "reservation_days_before"
+            "reservation_days_before_priority" ; "barcode" ; "company_id"
+        ]
+
+        let sql = """
+            with
+            rel_location as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.location'
+                and name not like '\_\_%'
+            )
+            select rls.external_id as def_loc_src_ext_id, rld.external_id as def_loc_dest_ext_id, spt.*
+            from stock_picking_type as spt
+            left join rel_location as rls on spt.default_location_src_id = rls.id
+            left join rel_location as rld on spt.default_location_dest_id = rld.id
+            order by spt.id
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> StockPickingType.exportId
+                reader.text "name"
+                reader.int "color" |> string
+                reader.int "sequence" |> string
+                reader.int "sequence_id" |> Some |> IrSequence.exportId
+                reader.text "sequence_code"
+
+                match reader.textOrNone "def_loc_src_ext_id" with
+                | Some externalId -> externalId
+                | None -> reader.intOrNone "default_location_src_id" |> StockLocation.exportId
+
+                match reader.textOrNone "def_loc_dest_ext_id" with
+                | Some externalId -> externalId
+                | None -> reader.intOrNone "default_location_dest_id" |> StockLocation.exportId
+
+                reader.textOrNone "code" |> orEmptyString
+                reader.intOrNone "return_picking_type_id" |> StockPickingType.exportId
+                reader.boolOrNone "show_entire_packs" |> orEmptyString
+                reader.int "warehouse_id" |> Some |> StockWarehouse.exportId
+                reader.bool "active" |> string
+                reader.bool "use_create_lots" |> string
+                reader.bool "use_existing_lots" |> string
+                reader.boolOrNone "print_label" |> orEmptyString
+                reader.bool "show_operations" |> string
+                reader.bool "show_reserved" |> string
+                reader.text "reservation_method"
+                reader.intOrNone "reservation_days_before" |> orEmptyString
+                reader.intOrNone "reservation_days_before_priority" |> orEmptyString
+                reader.textOrNone "barcode" |> orEmptyString
+                reader.int "company_id" |> string
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
