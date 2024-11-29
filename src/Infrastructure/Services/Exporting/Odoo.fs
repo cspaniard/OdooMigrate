@@ -18,6 +18,13 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
+    static let formatDecimalOption (valueOption : double option) =
+        match valueOption with
+        | Some value -> value.ToString("########0.00", CultureInfo.InvariantCulture)
+        | None -> ""
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
     static let formatDecimal (value : double) =
         value.ToString("########0.00", CultureInfo.InvariantCulture)
     //------------------------------------------------------------------------------------------------------------------
@@ -467,19 +474,19 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member exportAccountJournalBaseFields (modelName : string) =
+    static member exportAccountJournalBase (modelName : string) =
 
         let header = [
             "id" ; "name" ; "code"; "type" ; "sequence" ; "sequence_id/id"
             "bank_journal_id/id" ; "bank_cash_move_label"
-            "n43_date_type" ; "default_account_id" ; "refund_sequence/id"
+            "n43_date_type" ; "default_account_id" ; "refund_sequence" ; "refund_sequence_id/id"
         ]
 
         let sql = """
             select aj.id, aj.name, aj.code, aj.type, aj.sequence, aj.sequence_id,
                    aj.bank_journal_id, aj.bank_cash_move_label,
 				   aj.sales_payment_mode_id, aj.buys_payment_mode_id,
-				   n43_date_type, aa.code as account_id, aj.refund_sequence
+				   n43_date_type, aa.code as account_id, aj.refund_sequence, aj.refund_sequence_id
             from account_journal as aj
             left join account_account as aa on aj.default_account_id = aa.id
             where aj.code <> 'STJ'
@@ -501,6 +508,7 @@ type Service () =
                 reader.text "n43_date_type"
                 reader.textOrNone "account_id" |> orEmptyString
                 reader.boolOrNone "refund_sequence" |> orEmptyString
+                reader.intOrNone "refund_sequence_id" |> IrSequence.exportId
             ]
 
         header::ISqlBroker.getExportData sql readerFun

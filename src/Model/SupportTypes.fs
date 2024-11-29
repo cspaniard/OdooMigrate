@@ -115,3 +115,6 @@ type StockPickingType = StockPickingType with
 
 type StockWarehouse = StockWarehouse with
     static member exportId idOption = exportId "stock_warehouse" idOption
+
+type ProductProduct = ProductProduct with
+    static member exportId idOption = exportId "product_product" idOption
