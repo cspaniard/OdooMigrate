@@ -924,41 +924,32 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductPriceListItem (modelName : string) =
 
-        let header = [ "id" ; "product_tmpl_id/id" ; "applied_on" ; "base" ; "pricelist_id/id"
-                       "compute_price" ; "fixed_price" ; "percent_price" ]
+        let header = [ "id" ; "applied_on" ; "product_tmpl_id/id" ; "categ_id/id" ; "product_id/id" ; "base"
+                       "pricelist_id/id" ; "compute_price" ; "fixed_price" ; "percent_price"
+                       "date_start" ; "date_end" ]
 
         let sql = """
-            select ppi.id, ppi.product_tmpl_id, ppi.applied_on, ppi.base, ppi.pricelist_id,
-                   ppi.compute_price, ppi.fixed_price, ppi.percent_price, ppi.company_id
+            select ppi.id, ppi.product_tmpl_id, ppi.categ_id, product_id, ppi.applied_on, ppi.base, ppi.pricelist_id,
+                   ppi.compute_price, ppi.fixed_price, ppi.percent_price, ppi.company_id, ppi.date_start, ppi.date_end
             from product_pricelist_item as ppi
-            where ppi.product_tmpl_id is null
-            union
-            select ppi.id, ppi.product_tmpl_id, ppi.applied_on, ppi.base, ppi.pricelist_id,
-                   ppi.compute_price, ppi.fixed_price, ppi.percent_price, ppi.company_id
-            from product_pricelist_item as ppi
-            left join product_template as pt on ppi.product_tmpl_id = pt.id
-            where pt.active = true
-            order by 2
+            order by ppi.create_date
             """
 
         let readerFun (reader : RowReader) =
             [
                 reader.intOrNone "id" |> ProductPriceListItem.exportId
-                match reader.intOrNone "product_tmpl_id" with
-                | Some _ as idOption -> idOption |> ProductTemplate.exportId
-                | None -> ""
                 reader.text "applied_on"
+                reader.intOrNone "product_tmpl_id" |> ProductTemplate.exportId
+                reader.intOrNone "categ_id" |> ProductCategory.exportId
+                reader.intOrNone "product_id" |> ProductProduct.exportId
                 reader.text "base"
-                match reader.intOrNone "pricelist_id" with
-                | Some _ as idOption -> idOption |> ProductPriceList.exportId
-                | None -> ""
+
+                reader.intOrNone "pricelist_id" |> ProductPriceList.exportId
                 reader.text "compute_price"
-                match reader.doubleOrNone "fixed_price" with
-                | Some price -> price.ToString("###0.00", CultureInfo.InvariantCulture)
-                | None -> ""
-                match reader.doubleOrNone "percent_price" with
-                | Some price -> price.ToString("###0.00", CultureInfo.InvariantCulture)
-                | None -> ""
+                reader.doubleOrNone "fixed_price" |> formatDecimalOption
+                reader.doubleOrNone "percent_price" |> formatDecimalOption
+                reader.dateTimeOrNone "date_start" |> dateTimeOrEmptyString
+                reader.dateTimeOrNone "date_end" |> dateTimeOrEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
