@@ -1365,7 +1365,7 @@ type Service () =
             |> IExcelBroker.exportFile $"{modelName}_{relFieldName}.xlsx"
         //------------------------------------------------------------------------------------------------------------------
 
-        Service.exportAccountMoveBaseFields modelName
+        Service.exportAccountMoveBase modelName
 
         [
             ("message_main_attachment_id", IrAttachment.exportId)
@@ -1378,7 +1378,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
-    static member private exportAccountMoveBaseFields (modelName : string) =
+    static member private exportAccountMoveBase (modelName : string) =
 
         failwith "Hay que arreglar lo la AEAT con left join y detectar el external_id."
 
@@ -1502,7 +1502,7 @@ type Service () =
 
         header::ISqlBroker.getExportData sql readerFun
         |> List.take 50
-        |> IExcelBroker.exportFile $"{modelName}_base_fields.xlsx"
+        |> IExcelBroker.exportFile $"{modelName}_base.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
