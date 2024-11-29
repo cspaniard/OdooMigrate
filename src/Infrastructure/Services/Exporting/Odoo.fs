@@ -1793,9 +1793,132 @@ type Service () =
         let ebCashJournalId = getIdFromData configData "cash_statement_eb_cash_journal_id"
 
         let journalConfigData = getJournalConfigData deyCashJournalId ebCashJournalId
-        printf $"%A{journalConfigData}"
 
         configData @ journalConfigData
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportStockWarehouse (modelName : string) =
+
+        let header = [
+            "id" ; "name" ; "active" ; "company_id/.id" ; "partner_id/id" ; "view_location_id/id"
+            "lot_stock_id/id" ; "code" ; "reception_steps" ; "delivery_steps"
+            "wh_input_stock_loc_id/id" ; "wh_qc_stock_loc_id/id" ; "wh_output_stock_loc_id/id"
+            "wh_pack_stock_loc_id/id" ; "pick_type_id/id" ; "pack_type_id/id"
+            "out_type_id/id" ; "in_type_id/id" ; "int_type_id/id" ; "return_type_id/id"
+            "sequence" ; "buy_to_resupply"
+        ]
+
+        let sql = """
+			with
+            rel_location as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.location'
+                and module not like '\_\_%'
+			),
+			rel_picking_type as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.picking.type'
+                and module not like '\_\_%'
+			)
+			select
+				view_loc.external_id as view_loc_external_id,
+				lot_stock.external_id as lot_stock_external_id,
+				input_stock_loc.external_id as input_stock_loc_external_id,
+				qc_stock_loc.external_id as qc_stock_loc_external_id,
+				output_stock_loc.external_id as output_stock_loc_external_id,
+				pack_stock_loc.external_id as pack_stock_loc_external_id,
+				pick_type.external_id as pick_type_external_id,
+				pack_type.external_id as pack_type_external_id,
+				out_type.external_id as out_type_external_id,
+				in_type.external_id as in_type_external_id,
+				int_type.external_id as int_type_external_id,
+				return_type.external_id as return_type_external_id,
+				sw.*
+            from stock_warehouse as sw
+			left join rel_location as view_loc on sw.view_location_id = view_loc.id
+			left join rel_location as lot_stock on sw.lot_stock_id = lot_stock.id
+			left join rel_location as input_stock_loc on sw.wh_input_stock_loc_id = input_stock_loc.id
+			left join rel_location as qc_stock_loc on sw.wh_qc_stock_loc_id = qc_stock_loc.id
+			left join rel_location as output_stock_loc on sw.wh_output_stock_loc_id = output_stock_loc.id
+			left join rel_location as pack_stock_loc on sw.wh_pack_stock_loc_id = pack_stock_loc.id
+			left join rel_picking_type as pick_type on sw.pick_type_id = pick_type.id
+			left join rel_picking_type as pack_type on sw.pack_type_id = pack_type.id
+			left join rel_picking_type as out_type on sw.out_type_id = out_type.id
+			left join rel_picking_type as in_type on sw.in_type_id = in_type.id
+			left join rel_picking_type as int_type on sw.int_type_id = int_type.id
+			left join rel_picking_type as return_type on sw.return_type_id = return_type.id
+            order by id
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> StockWarehouse.exportId
+                reader.text "name"
+                reader.bool "active" |> string
+                reader.int "company_id" |> string
+                reader.intOrNone "partner_id" |> ResPartner.exportId
+
+                match reader.textOrNone "view_loc_external_id" with
+                | Some view_loc_external_id -> view_loc_external_id
+                | None -> reader.intOrNone "view_location_id" |> StockLocation.exportId
+
+                match reader.textOrNone "lot_stock_external_id" with
+                | Some lot_stock_external_id -> lot_stock_external_id
+                | None -> reader.intOrNone "lot_stock_id" |> StockLocation.exportId
+
+                reader.textOrNone "code" |> orEmptyString
+                reader.text "reception_steps"
+                reader.text "delivery_steps"
+
+                match reader.textOrNone "input_stock_loc_external_id" with
+                | Some input_stock_loc_external_id -> input_stock_loc_external_id
+                | None -> reader.intOrNone "wh_input_stock_loc_id" |> StockLocation.exportId
+
+                match reader.textOrNone "qc_stock_loc_external_id" with
+                | Some qc_stock_loc_external_id -> qc_stock_loc_external_id
+                | None -> reader.intOrNone "wh_qc_stock_loc_id" |> StockLocation.exportId
+
+                match reader.textOrNone "output_stock_loc_external_id" with
+                | Some output_stock_loc_external_id -> output_stock_loc_external_id
+                | None -> reader.intOrNone "wh_output_stock_loc_id" |> StockLocation.exportId
+
+                match reader.textOrNone "pack_stock_loc_external_id" with
+                | Some pack_stock_loc_external_id -> pack_stock_loc_external_id
+                | None -> reader.intOrNone "wh_pack_stock_loc_id" |> StockLocation.exportId
+
+                match reader.textOrNone "pick_type_external_id" with
+                | Some pick_type_external_id -> pick_type_external_id
+                | None -> reader.intOrNone "pick_type_id" |> StockPickingType.exportId
+
+                match reader.textOrNone "pack_type_external_id" with
+                | Some pack_type_external_id -> pack_type_external_id
+                | None -> reader.intOrNone "pack_type_id" |> StockPickingType.exportId
+
+                match reader.textOrNone "out_type_external_id" with
+                | Some out_type_external_id -> out_type_external_id
+                | None -> reader.intOrNone "out_type_id" |> StockPickingType.exportId
+
+                match reader.textOrNone "in_type_external_id" with
+                | Some in_type_external_id -> in_type_external_id
+                | None ->reader.intOrNone "in_type_id" |> StockPickingType.exportId
+
+                match reader.textOrNone "int_type_external_id" with
+                | Some int_type_external_id -> int_type_external_id
+                | None -> reader.intOrNone "int_type_id" |> StockPickingType.exportId
+
+                match reader.textOrNone "return_type_external_id" with
+                | Some return_type_external_id -> return_type_external_id
+                | None -> reader.intOrNone "return_type_id" |> StockPickingType.exportId
+
+                reader.int "sequence" |> string
+                reader.bool "buy_to_resupply" |> string
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
