@@ -2006,22 +2006,34 @@ type Service () =
 
         let sql = """
             with
+			rel_picking_type as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.picking.type'
+                and module not like '\_\_%'
+			),
             rel_location as (
                 select module, model, res_id as id, module || '.' || name as external_id
                 from ir_model_data
                 where model = 'stock.location'
-                and name not like '\_\_%'
+                and module not like '\_\_%'
             )
-            select rls.external_id as def_loc_src_ext_id, rld.external_id as def_loc_dest_ext_id, spt.*
+            select rls.external_id as def_loc_src_ext_id, rld.external_id as def_loc_dest_ext_id,
+                   rpt.external_id as external_id,
+                   spt.*
             from stock_picking_type as spt
             left join rel_location as rls on spt.default_location_src_id = rls.id
             left join rel_location as rld on spt.default_location_dest_id = rld.id
+            left join rel_picking_type as rpt on spt.id = rpt.id
             order by spt.id
             """
 
         let readerFun (reader : RowReader) =
             [
-                reader.int "id" |> Some |> StockPickingType.exportId
+                match reader.textOrNone "external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "id" |> Some |> StockPickingType.exportId
+
                 reader.text "name"
                 reader.int "color" |> string
                 reader.int "sequence" |> string
