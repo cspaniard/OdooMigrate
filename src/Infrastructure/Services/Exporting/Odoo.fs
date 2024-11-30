@@ -86,8 +86,9 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportResPartnerBank (modelName : string) =
 
-        let header = [ "id" ; "bank_id/id" ; "acc_number"; "sequence"
-                       "partner_id/id" ; "acc_holder_name" ; "description" ]
+        let header = [
+            "id" ; "bank_id/id" ; "acc_number"; "sequence" ; "partner_id/id" ; "acc_holder_name" ; "description"
+        ]
 
         let sql = $"""
             select rpb.id, rpb.acc_number, rpb.sequence, rpb.partner_id, rpb.bank_id,
@@ -215,15 +216,23 @@ type Service () =
     static member exportResUsers (modelName : string) =
 
         let header = [ "id" ; "login"; "name" ; "notification_type" ; "team_id/.id"
-                       "working_year" ; "lowest_working_date" ]
+                       "working_year" ; "lowest_working_date" ; "action_id/id" ]
 
-        let sql = $"""
-            select res_users.id, login, name, notification_type, working_year, lowest_working_date
+        let sql = """
+            with
+			rel_action_action as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'ir.actions.act_window'
+                and module not like '\_\_%'
+			)
+            select res_users.id, login, name, notification_type, working_year, lowest_working_date,
+                   raa.external_id as action_external_id
             from res_users
             join res_partner on res_users.partner_id = res_partner.id
-            where res_users.company_id={ORIG_COMPANY_ID}
-            and res_users.active = true
-            """
+            left join rel_action_action as raa on res_users.action_id = raa.id
+            where res_users.active = true
+            and res_users.company_id=""" + ORIG_COMPANY_ID
 
         let readerFun (reader : RowReader) =
             [
@@ -235,6 +244,7 @@ type Service () =
                 // "sales_team.team_sales_department"     // sale_team_id
                 reader.textOrNone "working_year" |> orEmptyString
                 reader.dateOnlyOrNone "lowest_working_date" |> dateOrEmptyString
+                reader.textOrNone "action_external_id" |> orEmptyString
             ]
 
         header::ISqlBroker.getExportData sql readerFun
