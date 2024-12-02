@@ -1612,22 +1612,73 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportIrSequence (modelName : string) =
 
+        let getSequenceNumberNextActual (sequenceId : int) =
+            // Esta función sólo es válida para secuencias de tipo standard.
+
+            let sequenceName = $"ir_sequence_{sequenceId:D3}"
+
+            let sql = $"""
+                select
+                    last_value,
+                    (select increment_by
+                     from pg_sequences
+                     where sequencename = '{sequenceName}'),
+                    is_called
+                from {sequenceName}
+            """
+
+            let readerFun (reader : RowReader) =
+                [
+                    reader.int "last_value"
+                    reader.int "increment_by"
+                    if reader.bool "is_called" then 1 else 0
+                ]
+
+            let sequenceData = ISqlBroker.getExportData sql readerFun
+            let lastValue = sequenceData[0][0]
+            let incrementBy = sequenceData[0][1]
+            let isCalled = sequenceData[0][2]
+
+            if isCalled = 1 then
+                lastValue + incrementBy
+            else
+                lastValue
+
         let header = [
             "id" ; "active" ; "code" ; "implementation" ; "name" ; "number_increment"
-            "number_next" ; "padding" ; "prefix" ; "suffix" ; "use_date_range"
+            "number_next" ; "number_next_actual" ; "padding" ; "prefix" ; "suffix" ; "use_date_range"
         ]
 
-        let sql = "select * from ir_sequence"
+        let sql = """
+            with
+			rel_sequence as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'ir.sequence'
+                and module not like '\_\_%'
+			)
+            select rs.external_id as sequence_external_id, irs.*
+            from ir_sequence as irs
+            left join rel_sequence as rs on irs.id = rs.id
+        """
 
         let readerFun (reader : RowReader) =
             [
-                reader.int "id" |> Some |> IrSequence.exportId
+                match reader.textOrNone "sequence_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "id" |> Some |> IrSequence.exportId
+
                 reader.boolOrNone "active" |> orEmptyString
                 reader.textOrNone "code" |> orEmptyString
                 reader.text "implementation"
                 reader.text "name"
                 reader.int "number_increment" |> string
                 reader.int "number_next" |> string
+
+                match reader.text "implementation" with
+                | "standard" -> getSequenceNumberNextActual (reader.int "id") |> string
+                | _ -> ""
+
                 reader.int "padding" |> string
                 reader.textOrNone "prefix" |> orEmptyString
                 reader.textOrNone "suffix" |> orEmptyString
