@@ -1692,21 +1692,37 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportIrSequenceDateRange (modelName : string) =
 
-        let header = [ "id" ; "date_from" ; "date_to" ; "sequence_id" ; "number_next" ]
+        let header = [ "id" ; "date_from" ; "date_to" ; "sequence_id/id" ; "number_next" ]
 
-        let sql = "select * from ir_sequence_date_range order by date_from"
+        let sql = """
+            with
+			rel_sequence as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'ir.sequence'
+                and module not like '\_\_%'
+			)
+            select rs.external_id as sequence_external_id, irsdr.*
+            from ir_sequence_date_range as irsdr
+            left join rel_sequence as rs on irsdr.sequence_id = rs.id
+            order by date_from
+            """
 
         let readerFun (reader : RowReader) =
             [
                 reader.int "id" |> Some |> IrSequenceDateRange.exportId
                 reader.dateOnly "date_from" |> Some |> dateOrEmptyString
                 reader.dateOnly "date_to" |> Some |> dateOrEmptyString
-                reader.int "sequence_id" |> Some |> IrSequence.exportId
+
+                match reader.textOrNone "sequence_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "sequence_id" |> Some |> IrSequence.exportId
+
                 reader.int "number_next" |> string
             ]
 
         header::ISqlBroker.getExportData sql readerFun
-        |> IExcelBroker.exportFile $"{modelName}_date_range.xlsx"
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
