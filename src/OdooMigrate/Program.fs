@@ -13,10 +13,10 @@ IExcelBroker.init "/home/dsanroma/odoo_export/deysanka_15"
 
 let exportList =
     [
-        ("res_users", IOdooExportService.exportResUsers)
+        // ("res_users", IOdooExportService.exportResUsers)
         // ("res_groups_users_rel", IOdooExportService.exportResGroupsUsersRel)
-        // ("ir_sequence", IOdooExportService.exportIrSequence)
-        // ("ir_sequence", IOdooExportService.exportIrSequenceDateRange)
+        ("ir_sequence", IOdooExportService.exportIrSequence)
+        ("ir_sequence_date_range", IOdooExportService.exportIrSequenceDateRange)
         // ("account_account", IOdooExportService.exportAccountAccount)
         // ("account_journal_base", IOdooExportService.exportAccountJournalBase)
         // ("account_journal_payment_mode", IOdooExportService.exportAccountJournalPaymentMode)
@@ -36,10 +36,9 @@ let exportList =
         // ("ir_attachment", IOdooExportService.exportIrAttachment)
         // // ("account_move", IOdooExportService.exportAccountMove)
         // ("res_bank", IOdooExportService.exportResBank)
-        ("res_partner_bank", IOdooExportService.exportResPartnerBank)
+        // ("res_partner_bank", IOdooExportService.exportResPartnerBank)
         // ("account_payment_term", IOdooExportService.exportAccountPaymentTerm)
-        ("res_partner", IOdooExportService.exportResPartner)
-
+        // ("res_partner", IOdooExportService.exportResPartner)
         // ("account_banking_mandate", IOdooExportService.exportAccountBankingMandate)
         // ("account_opening_move_15", IOdooExportService.exportAccountOpeningMove)
         // ("ir_default", IOdooExportService.exportDefaultValues)

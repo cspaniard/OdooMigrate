@@ -552,29 +552,34 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountBankingMandate (modelName : string) =
 
-        let header = [ "id" ; "format" ; "type"; "partner_bank_id/id" ; "signature_date"
-                       "state" ; "recurrent_sequence_type" ; "scheme" ]
+        let header = [
+            "id" ; "message_main_attachment_id/id" ; "format" ; "type"; "partner_bank_id/id"
+            "partner_id/id" ; "company_id/.id" ; "unique_mandate_reference" ; "signature_date"
+            "last_debit_date" ; "state"  ; "display_name"; "recurrent_sequence_type" ; "scheme"
+        ]
 
         let sql = $"""
-            select abm.id, abm.format, abm.type, abm.partner_bank_id, abm.partner_id, abm.signature_date,
-                   abm.last_debit_date, abm.state, abm.recurrent_sequence_type, abm.scheme
+            select *
             from account_banking_mandate as abm
-            join res_partner as rp on abm.partner_id = rp.id
             where abm.company_id={ORIG_COMPANY_ID}
-            and abm.state = 'valid'
-            and rp.active = true
             """
 
         let readerFun (reader : RowReader) =
             [
                 reader.intOrNone "id" |> AccountBankingMandate.exportId
+                reader.intOrNone "message_main_attachment_id" |> IrAttachment.exportId
                 reader.text "format"
                 reader.text "type"
                 reader.intOrNone "partner_bank_id" |> ResPartnerBank.exportId
+                reader.intOrNone "partner_id" |> ResPartner.exportId
+                reader.int "company_id" |> string
+                reader.text "unique_mandate_reference"
                 reader.dateOnlyOrNone "signature_date" |> dateOrEmptyString
-                reader.textOrNone "state" |> orEmptyString
-                reader.textOrNone "recurrent_sequence_type" |> orEmptyString
-                reader.textOrNone "scheme" |> orEmptyString
+                reader.dateOnlyOrNone "last_debit_date" |> dateOrEmptyString
+                reader.text "state"
+                reader.text "display_name"
+                reader.text "recurrent_sequence_type"
+                reader.text "scheme"
             ]
 
         header::ISqlBroker.getExportData sql readerFun
