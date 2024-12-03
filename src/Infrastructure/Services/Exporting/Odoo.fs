@@ -2175,3 +2175,83 @@ type Service () =
         header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportStockPicking (modelName : string) =
+
+        let header = [
+            "id" ; "message_main_attachment_id/id" ; "name" ; "origin" ; "note" ; "backorder_id/id" ;
+            "move_type" ; "state" ; "group_id/id" ; "priority" ; "scheduled_date" ; "date_deadline" ;
+            "has_deadline_issue" ; "date" ; "date_done" ; "location_id/id" ; "location_dest_id/id" ;
+            "picking_type_id/id" ; "partner_id/id" ; "company_id/.id" ; "user_id/id" ; "owner_id/id" ; "printed" ;
+            "is_locked" ; "immediate_transfer" ; "sale_id"
+        ]
+
+        let sql = """
+            with
+			rel_stock_location as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.location'
+                and module not like '\_\_%'
+            ),
+			rel_picking_type as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.picking.type'
+                and module not like '\_\_%'
+            )
+            select rsl.external_id as location_external_id,
+                   rsld.external_id as location_dest_external_id,
+                   rpt.external_id as picking_type_external_id,
+                   sp.*
+            from stock_picking as sp
+            left join rel_stock_location as rsl on sp.location_id = rsl.id
+            left join rel_stock_location as rsld on sp.location_dest_id = rsld.id
+            left join rel_picking_type as rpt on sp.picking_type_id = rpt.id
+            order by sp.create_date
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> StockPicking.exportId
+                reader.intOrNone "message_main_attachment_id" |> IrAttachment.exportId
+                reader.textOrNone "name" |> orEmptyString
+                reader.textOrNone "origin" |> orEmptyString
+                reader.textOrNone "note" |> orEmptyString
+                reader.intOrNone "backorder_id" |> StockPicking.exportId
+                reader.text "move_type"
+                reader.textOrNone "state" |> orEmptyString
+                reader.intOrNone "group_id" |> ProcurementGroup.exportId
+                reader.textOrNone "priority" |> orEmptyString
+                reader.dateTimeOrNone "scheduled_date" |> dateTimeOrEmptyString
+                reader.dateTimeOrNone "date_deadline" |> dateTimeOrEmptyString
+                reader.boolOrNone "has_deadline_issue" |> orEmptyString
+                reader.dateTimeOrNone "date" |> dateTimeOrEmptyString
+                reader.dateTimeOrNone "date_done" |> dateTimeOrEmptyString
+
+                match reader.textOrNone "location_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "location_id" |> Some |> StockLocation.exportId
+
+                match reader.textOrNone "location_dest_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "location_dest_id" |> Some |> StockLocation.exportId
+
+                match reader.textOrNone "picking_type_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "picking_type_id" |> Some |> StockPickingType.exportId
+
+                reader.intOrNone "partner_id" |> ResPartner.exportId
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.intOrNone "user_id" |> ResUsers.exportId
+                reader.intOrNone "owner_id" |> ResPartner.exportId
+                reader.boolOrNone "printed" |> orEmptyString
+                reader.boolOrNone "is_locked" |> orEmptyString
+                reader.boolOrNone "immediate_transfer" |> orEmptyString
+                reader.intOrNone "sale_id" |> SaleOrder.exportId
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
