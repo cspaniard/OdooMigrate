@@ -110,11 +110,29 @@ type IrSequenceDateRange = IrSequenceDateRange with
 type StockLocation = StockLocation with
     static member exportId idOption = exportId "stock_location" idOption
 
+type ProcurementGroup = ProcurementGroup with
+    static member exportId idOption = exportId "procurement_group" idOption
+
+type StockPicking = StockPicking with
+    static member exportId idOption = exportId "stock_picking" idOption
+
 type StockPickingType = StockPickingType with
     static member exportId idOption = exportId "stock_picking_type" idOption
+
+type StockMove = StockMove with
+    static member exportId idOption = exportId "stock_move" idOption
+
+type StockMoveLine = StockMoveLine with
+    static member exportId idOption = exportId "stock_move_line" idOption
 
 type StockWarehouse = StockWarehouse with
     static member exportId idOption = exportId "stock_warehouse" idOption
 
 type ProductProduct = ProductProduct with
     static member exportId idOption = exportId "product_product" idOption
+
+type SaleOrder = SaleOrder with
+    static member exportId idOption = exportId "sale_order" idOption
+
+type StockProductionLot = StockProductionLot with
+    static member exportId idOption = exportId "stock_production_lot" idOption

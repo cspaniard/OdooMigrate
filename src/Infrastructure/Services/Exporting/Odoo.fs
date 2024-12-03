@@ -2151,3 +2151,27 @@ type Service () =
         header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportProcurementGroup (modelName : string) =
+
+        let header = [ "id" ; "partner_id/id" ; "name" ; "move_type" ; "sale_id/id" ]
+
+        let sql = """
+            select *
+            from procurement_group
+            order by create_date
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> ProcurementGroup.exportId
+                reader.intOrNone "partner_id" |> ResPartner.exportId
+                reader.text "name"
+                reader.text "move_type"
+                reader.intOrNone "sale_id" |> SaleOrder.exportId
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------

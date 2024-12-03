@@ -15,8 +15,11 @@ let exportList =
     [
         // ("res_users", IOdooExportService.exportResUsers)
         // ("res_groups_users_rel", IOdooExportService.exportResGroupsUsersRel)
-        ("ir_sequence", IOdooExportService.exportIrSequence)
-        ("ir_sequence_date_range", IOdooExportService.exportIrSequenceDateRange)
+        // ("stock_picking", IOdooExportService.exportStockPicking)
+        // ("procurement_group", IOdooExportService.exportProcurementGroup)
+        ("stock_lot", IOdooExportService.exportStockLot)
+        // ("ir_sequence", IOdooExportService.exportIrSequence)
+        // ("ir_sequence_date_range", IOdooExportService.exportIrSequenceDateRange)
         // ("account_account", IOdooExportService.exportAccountAccount)
         // ("account_journal_base", IOdooExportService.exportAccountJournalBase)
         // ("account_journal_payment_mode", IOdooExportService.exportAccountJournalPaymentMode)
