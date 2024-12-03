@@ -2255,3 +2255,40 @@ type Service () =
         header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportStockLot (modelName : string) =
+
+        let header = [
+            "id" ; "message_main_attachment_id/id" ; "name" ; "ref" ; "product_id/id" ; "product_uom_name"
+            "note" ; "company_id/.id" ; "expiration_date" ; "use_date" ; "removal_date"
+            "alert_date" ; "product_expiry_reminded" ; "mostrar"
+        ]
+
+        let sql = """
+            select uom.name as product_uom_name, spl.*
+            from stock_production_lot as spl
+            join uom_uom as uom on spl.product_uom_id = uom.id
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> StockProductionLot.exportId
+                reader.intOrNone "message_main_attachment_id" |> IrAttachment.exportId
+                reader.text "name"
+                reader.textOrNone "ref" |> orEmptyString
+                reader.intOrNone "product_id" |> ProductTemplate.exportId
+                reader.text "product_uom_name"
+                reader.textOrNone "note" |> orEmptyString
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.dateTimeOrNone "expiration_date" |> dateTimeOrEmptyString
+                reader.dateTimeOrNone "use_date" |> dateTimeOrEmptyString
+                reader.dateTimeOrNone "removal_date" |> dateTimeOrEmptyString
+                reader.dateTimeOrNone "alert_date" |> dateTimeOrEmptyString
+                reader.boolOrNone "product_expiry_reminded" |> orEmptyString
+                reader.boolOrNone "mostrar" |> orEmptyString
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
