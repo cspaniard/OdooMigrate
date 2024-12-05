@@ -468,7 +468,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountAccount (modelName : string) =
 
-        let header = addStampHeadersTo [ "id" ; "code" ; "name"; "account_type_id/id" ; "reconcile" ; "last_visible_year" ]
+        let header = addStampHeadersTo [ "id" ; "code" ; "name"; "account_type_id" ; "reconcile" ; "last_visible_year" ]
 
         let accountTypeMap = Map [
             "data_account_type_receivable", "asset_receivable"
@@ -1094,8 +1094,8 @@ type Service () =
                 group by payment_mode_id
             )
 
-            select apm.*
-                   (md.module || '.' || md.name) as payment_method_id,
+            select apm.*,
+                   (md.module || '.' || md.name) as payment_method_external_id,
                    pmr.journal_ids as default_journal_ids,
                    pmv.journal_ids as variable_journal_ids
             from account_payment_mode as apm
@@ -1109,12 +1109,12 @@ type Service () =
                 reader.intOrNone "id" |> AccountPaymentMode.exportId
                 reader.text "name"
                 reader.textOrNone "bank_account_link" |> orEmptyString
-                reader.intOrNone "fixed_journal_id/id" |> AccountJournal.exportId
+                reader.intOrNone "fixed_journal_id" |> AccountJournal.exportId
                 reader.textOrNone "initiating_party_identifier" |> orEmptyString
                 reader.textOrNone "initiating_party_issuer" |> orEmptyString
                 reader.textOrNone "initiating_party_scheme" |> orEmptyString
                 reader.textOrNone "sepa_creditor_identifier" |> orEmptyString
-                reader.textOrNone "payment_method_id/id" |> orEmptyString
+                reader.textOrNone "payment_method_external_id" |> orEmptyString
 
                 reader.boolOrNone "payment_order_ok" |> orEmptyString
                 reader.textOrNone "default_payment_mode" |> orEmptyString
@@ -1188,8 +1188,8 @@ type Service () =
         let detailsWithBalanceReaderFun (reader : RowReader) =
             [
                 ""
-                reader.text "account_id/id"
-                reader.intOrNone "partner_id/id" |> ResPartner.exportId
+                reader.text "account_id"
+                reader.intOrNone "partner_id" |> ResPartner.exportId
                 reader.textOrNone "ref" |> orEmptyString
                 reader.double "debit" |> formatDecimal
                 reader.double "credit" |> formatDecimal
@@ -1239,7 +1239,7 @@ type Service () =
                 // if balance <> 0.0 then
                 if areNotEqual_0001 balance 0.0 then
                     ""
-                    reader.text "account_id/id"
+                    reader.text "account_id"
                     ""   // Partner_id
 
                     $"Asiento Apertura {OPENING_MOVE_YEAR}"   // ref
@@ -1311,8 +1311,8 @@ type Service () =
             [
                 if shouldGenerateRow() then
                     ""
-                    reader.text "account_id/id"
-                    reader.intOrNone "partner_id/id" |> ResPartner.exportId
+                    reader.text "account_id"
+                    reader.intOrNone "partner_id" |> ResPartner.exportId
 
                     match reader.textOrNone "ref" with
                     | Some ref -> ref
@@ -1327,7 +1327,7 @@ type Service () =
                     if reader.text "move_type" = "D" then 0.0 |> formatDecimal
 
                     reader.dateOnlyOrNone "date_maturity" |> dateOrEmptyString
-                    reader.intOrNone "payment_mode_id/id" |> AccountPaymentMode.exportId
+                    reader.intOrNone "payment_mode_id" |> AccountPaymentMode.exportId
             ]
         //--------------------------------------------------------------------------------------------------------------
 
@@ -1828,32 +1828,32 @@ type Service () =
                 "deysanka_account.bad_reconcile_exclude_accounts", "bad_reconcile_exclude_accounts"
                 "deysanka_account.bank_batch_charges_prefix", "bank_batch_charges_prefix"
                 "deysanka_account.bank_batch_credit_prefix", "bank_batch_credit_prefix"
-                "deysanka_account.bank_charges_client_journal_id/id", "bank_charges_client_journal_id/id"
-                "deysanka_account.bank_charges_client_payment_mode_id/id", "bank_charges_client_payment_mode_id/id"
-                "deysanka_account.bank_charges_client_payment_term_id/id", "bank_charges_client_payment_term_id/id"
-                "deysanka_account.bank_charges_client_product_id/id", "bank_charges_client_product_id/id"
-                "deysanka_account.bank_charges_partner_id/id", "bank_charges_partner_id/id"
-                "deysanka_account.bank_charges_product_id/id", "bank_charges_product_id/id"
-                "deysanka_account.bank_charges_ret_journal_id/id", "bank_charges_ret_journal_id/id"
-                "deysanka_account.cash_statement_dey_cash_journal_id/id", "cash_statement_dey_cash_journal_id/id"
-                "deysanka_account.cash_statement_eb_cash_journal_id/id", "cash_statement_eb_cash_journal_id/id"
-                "deysanka_account.closing_journal_id/id", "closing_journal_id/id"
+                "deysanka_account.bank_charges_client_journal_id", "bank_charges_client_journal_id"
+                "deysanka_account.bank_charges_client_payment_mode_id", "bank_charges_client_payment_mode_id"
+                "deysanka_account.bank_charges_client_payment_term_id", "bank_charges_client_payment_term_id"
+                "deysanka_account.bank_charges_client_product_id", "bank_charges_client_product_id"
+                "deysanka_account.bank_charges_partner_id", "bank_charges_partner_id"
+                "deysanka_account.bank_charges_product_id", "bank_charges_product_id"
+                "deysanka_account.bank_charges_ret_journal_id", "bank_charges_ret_journal_id"
+                "deysanka_account.cash_statement_dey_cash_journal_id", "cash_statement_dey_cash_journal_id"
+                "deysanka_account.cash_statement_eb_cash_journal_id", "cash_statement_eb_cash_journal_id"
+                "deysanka_account.closing_journal_id", "closing_journal_id"
                 "deysanka_account.deysanka_checks_proxy_url", "deysanka_checks_proxy_url"
-                "deysanka_account.monthly_sales_cash_journal_id/id", "monthly_sales_cash_journal_id/id"
-                "deysanka_account.monthly_sales_journal_id/id", "monthly_sales_journal_id/id"
-                "deysanka_account.monthly_sales_partner_id/id", "monthly_sales_partner_id/id"
-                "deysanka_account.monthly_sales_payment_mode_id/id", "monthly_sales_payment_mode_id/id"
-                "deysanka_account.monthly_sales_payment_term_id/id", "monthly_sales_payment_term_id/id"
-                "deysanka_account.monthly_sales_product_ptc_id/id", "monthly_sales_product_ptc_id/id"
-                "deysanka_account.monthly_sales_product_pte_id/id", "monthly_sales_product_pte_id/id"
-                "deysanka_account.monthly_sales_product_ptt_id/id", "monthly_sales_product_ptt_id/id"
+                "deysanka_account.monthly_sales_cash_journal_id", "monthly_sales_cash_journal_id"
+                "deysanka_account.monthly_sales_journal_id", "monthly_sales_journal_id"
+                "deysanka_account.monthly_sales_partner_id", "monthly_sales_partner_id"
+                "deysanka_account.monthly_sales_payment_mode_id", "monthly_sales_payment_mode_id"
+                "deysanka_account.monthly_sales_payment_term_id", "monthly_sales_payment_term_id"
+                "deysanka_account.monthly_sales_product_ptc_id", "monthly_sales_product_ptc_id"
+                "deysanka_account.monthly_sales_product_pte_id", "monthly_sales_product_pte_id"
+                "deysanka_account.monthly_sales_product_ptt_id", "monthly_sales_product_ptt_id"
                 "deysanka_account.monthly_sales_tpv_code", "monthly_sales_tpv_code"
-                "deysanka_account.partner_deysanka_id/id", "partner_deysanka_id/id"
+                "deysanka_account.partner_deysanka_id", "partner_deysanka_id"
                 "deysanka_account.tag_name_mensual", "tag_name_mensual"
-                "deysanka_account.unpaid_inv_account_id/id", "unpaid_inv_account_id/id"
+                "deysanka_account.unpaid_inv_account_id", "unpaid_inv_account_id"
                 "deysanka_account.unpaid_inv_payment_mode_by_customer", "unpaid_inv_payment_mode_by_customer"
                 "deysanka_account.unpaid_inv_ref_prefix", "unpaid_inv_ref_prefix"
-                "deysanka_account.web_sales_partner_id/id", "web_sales_partner_id/id"
+                "deysanka_account.web_sales_partner_id", "web_sales_partner_id"
                 "deysanka_account.web_sales_tpv_code", "web_sales_tpv_code"
             ]
         //--------------------------------------------------------------------------------------------------------------
@@ -1861,50 +1861,50 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
         let exportFunMap =
             Map [
-                "bank_charges_client_journal_id/id", AccountJournal.exportId
-                "bank_charges_client_payment_mode_id/id", AccountPaymentMode.exportId
-                "bank_charges_client_payment_term_id/id", AccountPaymentTerm.exportId
-                "bank_charges_client_product_id/id", ProductTemplate.exportId
-                "bank_charges_partner_id/id", ResPartner.exportId
-                "bank_charges_product_id/id", ProductTemplate.exportId
-                "bank_charges_ret_journal_id/id", AccountJournal.exportId
-                "cash_statement_dey_cash_journal_id/id", AccountJournal.exportId
-                "cash_statement_eb_cash_journal_id/id", AccountJournal.exportId
-                "closing_journal_id/id", AccountJournal.exportId
-                "monthly_sales_cash_journal_id/id", AccountJournal.exportId
-                "monthly_sales_journal_id/id", AccountJournal.exportId
-                "monthly_sales_partner_id/id", ResPartner.exportId
-                "monthly_sales_payment_mode_id/id", AccountPaymentMode.exportId
-                "monthly_sales_payment_term_id/id", AccountPaymentTerm.exportId
-                "monthly_sales_product_ptc_id/id", ProductTemplate.exportId
-                "monthly_sales_product_pte_id/id", ProductTemplate.exportId
-                "monthly_sales_product_ptt_id/id", ProductTemplate.exportId
-                "partner_deysanka_id/id", ResPartner.exportId
-                "unpaid_inv_account_id/id", AccountAccount.exportId
+                "bank_charges_client_journal_id", AccountJournal.exportId
+                "bank_charges_client_payment_mode_id", AccountPaymentMode.exportId
+                "bank_charges_client_payment_term_id", AccountPaymentTerm.exportId
+                "bank_charges_client_product_id", ProductTemplate.exportId
+                "bank_charges_partner_id", ResPartner.exportId
+                "bank_charges_product_id", ProductTemplate.exportId
+                "bank_charges_ret_journal_id", AccountJournal.exportId
+                "cash_statement_dey_cash_journal_id", AccountJournal.exportId
+                "cash_statement_eb_cash_journal_id", AccountJournal.exportId
+                "closing_journal_id", AccountJournal.exportId
+                "monthly_sales_cash_journal_id", AccountJournal.exportId
+                "monthly_sales_journal_id", AccountJournal.exportId
+                "monthly_sales_partner_id", ResPartner.exportId
+                "monthly_sales_payment_mode_id", AccountPaymentMode.exportId
+                "monthly_sales_payment_term_id", AccountPaymentTerm.exportId
+                "monthly_sales_product_ptc_id", ProductTemplate.exportId
+                "monthly_sales_product_pte_id", ProductTemplate.exportId
+                "monthly_sales_product_ptt_id", ProductTemplate.exportId
+                "partner_deysanka_id", ResPartner.exportId
+                "unpaid_inv_account_id", AccountAccount.exportId
                 "unpaid_inv_payment_mode_by_customer", AccountPaymentMode.exportId
-                "web_sales_partner_id/id", ResPartner.exportId
+                "web_sales_partner_id", ResPartner.exportId
             ]
         //--------------------------------------------------------------------------------------------------------------
 
         //--------------------------------------------------------------------------------------------------------------
         let getJournalConfigData (deyCashJournalId : int) (ebCashJournalId : int) =
             [
-                [ "cash_statement_dey_bank_journal_id/id"
-                  getIntValueAsString deyCashJournalId "bank_journal_id/id" |> Some |> AccountJournal.exportId ]
+                [ "cash_statement_dey_bank_journal_id"
+                  getIntValueAsString deyCashJournalId "bank_journal_id" |> Some |> AccountJournal.exportId ]
                 [ "cash_statement_dey_cash_deposit_label"
                   getStringValue deyCashJournalId "bank_cash_move_label" ]
-                [ "cash_statement_dey_sales_payment_mode_id/id"
-                  getIntValueAsString deyCashJournalId "sales_payment_mode_id/id" |> Some |> AccountPaymentMode.exportId ]
-                [ "cash_statement_dey_buys_payment_mode_id/id"
-                  getIntValueAsString deyCashJournalId "buys_payment_mode_id/id" |> Some |> AccountPaymentMode.exportId ]
-                [ "cash_statement_eb_bank_journal_id/id"
-                  getIntValueAsString ebCashJournalId "bank_journal_id/id" |> Some |> AccountJournal.exportId ]
+                [ "cash_statement_dey_sales_payment_mode_id"
+                  getIntValueAsString deyCashJournalId "sales_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_dey_buys_payment_mode_id"
+                  getIntValueAsString deyCashJournalId "buys_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_eb_bank_journal_id"
+                  getIntValueAsString ebCashJournalId "bank_journal_id" |> Some |> AccountJournal.exportId ]
                 [ "cash_statement_eb_cash_deposit_label"
                   getStringValue ebCashJournalId "bank_cash_move_label" ]
-                [ "cash_statement_eb_sales_payment_mode_id/id"
-                  getIntValueAsString ebCashJournalId "sales_payment_mode_id/id" |> Some |> AccountPaymentMode.exportId ]
-                [ "cash_statement_eb_buys_payment_mode_id/id"
-                  getIntValueAsString ebCashJournalId "buys_payment_mode_id/id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_eb_sales_payment_mode_id"
+                  getIntValueAsString ebCashJournalId "sales_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_eb_buys_payment_mode_id"
+                  getIntValueAsString ebCashJournalId "buys_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
             ]
         //--------------------------------------------------------------------------------------------------------------
 
@@ -1929,8 +1929,8 @@ type Service () =
 
         let configData = header::ISqlBroker.getExportData sql readerFun
 
-        let deyCashJournalId = getIdFromData configData "cash_statement_dey_cash_journal_id/id"
-        let ebCashJournalId = getIdFromData configData "cash_statement_eb_cash_journal_id/id"
+        let deyCashJournalId = getIdFromData configData "cash_statement_dey_cash_journal_id"
+        let ebCashJournalId = getIdFromData configData "cash_statement_eb_cash_journal_id"
 
         let journalConfigData = getJournalConfigData deyCashJournalId ebCashJournalId
 
