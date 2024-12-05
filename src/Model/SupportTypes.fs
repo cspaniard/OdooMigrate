@@ -68,7 +68,7 @@ type AccountJournal = AccountJournal with
 type AccountBankingMandate = AccountBankingMandate with
     static member exportId idOption = exportId "account_banking_mandate" idOption
 
-type ProductPriceList = AccountProductPriceList with
+type ProductPriceList = ProductPriceList with
     static member exportId idOption = exportId "product_pricelist" idOption
 
 type ProductCategory = ProductCategory with
@@ -136,3 +136,15 @@ type SaleOrder = SaleOrder with
 
 type StockProductionLot = StockProductionLot with
     static member exportId idOption = exportId "stock_production_lot" idOption
+
+type UtmCampaign = UtmCampaign with
+    static member exportId idOption = exportId "utm_campaign" idOption
+
+type UtmSource = UtmSource with
+    static member exportId idOption = exportId "utm_source" idOption
+
+type UtmMedium = UtmMedium with
+    static member exportId idOption = exportId "utm_medium" idOption
+
+type ProjectProject = ProjectProject with
+    static member exportId idOption = exportId "project_project" idOption

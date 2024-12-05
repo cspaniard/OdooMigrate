@@ -61,14 +61,37 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
+    static let addStampHeadersTo (fields : string list) =
+        List.append fields ["create_uid/id" ; "create_date" ; "write_uid/id" ; "write_date"]
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static let readStampFields (reader : RowReader) =
+        [
+            match reader.int "create_uid" with
+            | 1 -> "base.user_root"
+            | _ -> reader.int "create_uid" |> Some |> ResUsers.exportId
+
+            reader.dateTimeOrNone "create_date" |> dateTimeOrEmptyString
+
+            match reader.int "write_uid" with
+            | 1 -> "base.user_root"
+            | _ -> reader.int "write_uid" |> Some |> ResUsers.exportId
+
+            reader.dateTimeOrNone "write_date" |> dateTimeOrEmptyString
+        ]
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
     static member exportResBank (modelName : string) =
 
-        let header = [ "id" ; "name" ; "bic" ; "country/id" ]
+        let header = addStampHeadersTo [ "id" ; "name" ; "bic" ; "country/id" ]
 
         let sql = """
-            select id, name, bic
+            select *
             from res_bank
             where active=true
+            order by create_date
             """
 
         let readerFun (reader : RowReader) =
@@ -77,6 +100,7 @@ type Service () =
                 reader.text "name"
                 reader.textOrNone "bic" |> orEmptyString
                 "base.es"      // country/id
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -86,17 +110,17 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportResPartnerBank (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "bank_id/id" ; "acc_number"; "sequence" ; "partner_id/id" ; "acc_holder_name" ; "description"
         ]
 
         let sql = $"""
-            select rpb.id, rpb.acc_number, rpb.sequence, rpb.partner_id, rpb.bank_id,
-                   rpb.acc_holder_name, rpb.description
+            select rpb.*
             from res_partner_bank as rpb
             join res_partner as rp on rpb.partner_id = rp.id
             where rpb.company_id={ORIG_COMPANY_ID}
             and rp.active = true
+            order by create_date
             """
 
         let readerFun (reader : RowReader) =
@@ -108,6 +132,7 @@ type Service () =
                 reader.intOrNone "partner_id" |> ResPartner.exportId
                 reader.textOrNone "acc_holder_name" |> orEmptyString
                 reader.textOrNone "description" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -119,11 +144,12 @@ type Service () =
 
         //--------------------------------------------------------------------------------------------------------------
         let exportAccountPaymentTerm (modelName : string) =
-            let header = [ "id" ; "name" ; "note" ; "sequence" ]
+            let header = addStampHeadersTo [ "id" ; "name" ; "note" ; "sequence" ]
 
             let sql = """
-                select id, name, note, sequence
+                select *
                 from account_payment_term
+                order by create_date
                 """
 
             let readerFun (reader : RowReader) =
@@ -132,6 +158,7 @@ type Service () =
                     reader.text "name"
                     $"""<p>{reader.textOrNone "note" |> Option.defaultValue (reader.text "name")}</p>"""
                     reader.int "sequence" |> string
+                    yield! readStampFields reader
                 ]
 
             header::ISqlBroker.getExportData sql readerFun
@@ -141,12 +168,14 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
         let exportAccountPaymentTermLine (modelName : string) =
 
-            let header = [ "id" ; "payment_id/id" ; "value" ; "value_amount" ; "nb_days"
-                           "days_next_month" ; "delay_type" ]
+            let header = addStampHeadersTo [
+                "id" ; "payment_id/id" ; "value" ; "value_amount" ; "nb_days" ; "days_next_month" ; "delay_type"
+            ]
 
             let sql = """
-                select id, value, value_amount, days, day_of_the_month, option, payment_id, sequence
+                select *
                 from account_payment_term_line
+                order by create_date
                 """
 
             let delayTypeMap = Map.ofList [
@@ -180,6 +209,8 @@ type Service () =
                     | "day_following_month" -> "days_after_end_of_next_month"
                     | _ when dayOfTheMonth = "0" -> delayTypeMap[lineOption]
                     | _ -> "days_end_of_month_on_the"
+
+                    yield! readStampFields reader
                 ]
 
             let termLines =
@@ -215,8 +246,10 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportResUsers (modelName : string) =
 
-        let header = [ "id" ; "login"; "name" ; "notification_type" ; "team_id/.id"
-                       "working_year" ; "lowest_working_date" ; "action_id/id" ]
+        let header = addStampHeadersTo [
+            "id" ; "login"; "name" ; "notification_type" ; "team_id/.id"
+            "working_year" ; "lowest_working_date" ; "action_id/id"
+        ]
 
         let sql = """
             with
@@ -226,17 +259,17 @@ type Service () =
                 where model = 'ir.actions.act_window'
                 and module not like '\_\_%'
 			)
-            select res_users.id, login, name, notification_type, working_year, lowest_working_date,
+            select res_users.*, res_partner.name as name,
                    raa.external_id as action_external_id
             from res_users
             join res_partner on res_users.partner_id = res_partner.id
             left join rel_action_action as raa on res_users.action_id = raa.id
             where res_users.active = true
-            and res_users.company_id=""" + ORIG_COMPANY_ID
+            and res_users.company_id=""" + ORIG_COMPANY_ID + " order by res_users.id"
 
         let readerFun (reader : RowReader) =
             [
-                reader.intOrNone "id" |> ResUsers.exportId
+                reader.int "id" |> Some |> ResUsers.exportId
                 reader.text "login"
                 reader.text "name"
                 reader.text "notification_type"
@@ -245,6 +278,7 @@ type Service () =
                 reader.textOrNone "working_year" |> orEmptyString
                 reader.dateOnlyOrNone "lowest_working_date" |> dateOrEmptyString
                 reader.textOrNone "action_external_id" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -276,14 +310,16 @@ type Service () =
         let defaultAccountPayableCode = getDefaultAccountCode "property_account_payable_id"
         //--------------------------------------------------------------------------------------------------------------
 
-        let header = [ "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
-                       "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
-                       "state_id/id" ; "country_id" ; "email" ; "phone" ; "mobile" ; "is_company"
-                       "customer" ; "supplier" ; "alternative_name" ; "comercial" ; "bank_name" ; "not_in_mod347"
-                       "sale_journal_id/id" ; "purchase_journal_id/id" ; "aeat_anonymous_cash_customer"
-                       "property_account_receivable_id" ; "property_account_payable_id"
-                       "property_payment_term_id/id" ; "customer_payment_mode_id/id" ; "supplier_payment_mode_id/id"
-                       "property_product_pricelist/id" ; "property_account_position_id/id" ]
+        let header = addStampHeadersTo [
+            "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
+            "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
+            "state_id/id" ; "country_id/id" ; "email" ; "phone" ; "mobile" ; "is_company"
+            "customer" ; "supplier" ; "alternative_name" ; "comercial" ; "bank_name" ; "not_in_mod347"
+            "sale_journal_id/id" ; "purchase_journal_id/id" ; "aeat_anonymous_cash_customer"
+            "property_account_receivable_id/id" ; "property_account_payable_id/id"
+            "property_payment_term_id/id" ; "customer_payment_mode_id/id" ; "supplier_payment_mode_id/id"
+            "property_product_pricelist/id" ; "property_account_position_id/id"
+        ]
 
         let sql = """
             with
@@ -353,7 +389,8 @@ type Service () =
                    apt.id as account_payment_term_id, rcpm.payment_mode_id as customer_payment_mode_id,
                    rspm.payment_mode_id as supplier_payment_mode_id,
                    rppl.product_pricelist as property_product_pricelist,
-                   'account.' || imd.name AS fiscal_position_external_id
+                   'account.' || imd.name AS fiscal_position_external_id,
+                   rp.create_uid, rp.create_date, rp.write_uid, rp.write_date
             from res_partner as rp
             left join rel_payable as pay on rp.id = pay.partner_id
             left join rel_receivable as rec on rp.id = rec.partner_id
@@ -421,6 +458,7 @@ type Service () =
                 reader.intOrNone "supplier_payment_mode_id" |> AccountPaymentMode.exportId
                 reader.intOrNone "property_product_pricelist" |> ProductPriceList.exportId
                 reader.stringOrNone "fiscal_position_external_id" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -430,8 +468,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountAccount (modelName : string) =
 
-        let header = [ "id" ; "code" ; "name"; "account_type_id"
-                       "reconcile" ; "last_visible_year" ]
+        let header = addStampHeadersTo [ "id" ; "code" ; "name"; "account_type_id/id" ; "reconcile" ; "last_visible_year" ]
 
         let accountTypeMap = Map [
             "data_account_type_receivable", "asset_receivable"
@@ -455,15 +492,16 @@ type Service () =
         ]
 
         let sql = """
-            with model_data as (
+            with rel_account_account_type as (
                 select name, res_id as id
                 from ir_model_data
                 where model = 'account.account.type'
             )
-            select aa.id, aa.code, aa.name, md.name as user_type_id, aa.reconcile, aa.last_visible_year
+            select aa.*,
+                   raat.name as user_type_external_id
             from account_account as aa
             join account_account_type as aat on aa.user_type_id = aat.id
-            join model_data as md on aa.user_type_id = md.id
+            join rel_account_account_type as raat on aa.user_type_id = raat.id
             where aa.create_uid <> 1
             and not (aa.code like '41%%' or aa.code like '43%%')
             or aa.code in ('430150')
@@ -475,9 +513,10 @@ type Service () =
                 reader.intOrNone "id" |> AccountAccount.exportId
                 reader.text "code"
                 reader.text "name"
-                accountTypeMap[reader.text "user_type_id"]
+                accountTypeMap[reader.text "user_type_external_id"]
                 reader.boolOrNone "reconcile" |> orEmptyString
                 reader.int "last_visible_year" |> string
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -487,17 +526,15 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountJournalBase (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "name" ; "code"; "type" ; "sequence" ; "sequence_id/id"
             "bank_journal_id/id" ; "bank_cash_move_label"
-            "n43_date_type" ; "default_account_id" ; "refund_sequence" ; "refund_sequence_id/id"
+            "n43_date_type" ; "default_account_id/id" ; "refund_sequence" ; "refund_sequence_id/id"
         ]
 
         let sql = """
-            select aj.id, aj.name, aj.code, aj.type, aj.sequence, aj.sequence_id,
-                   aj.bank_journal_id, aj.bank_cash_move_label,
-				   aj.sales_payment_mode_id, aj.buys_payment_mode_id,
-				   n43_date_type, aa.code as account_id, aj.refund_sequence, aj.refund_sequence_id
+            select aj.*,
+				   aa.code as account_id
             from account_journal as aj
             left join account_account as aa on aj.default_account_id = aa.id
             where aj.code <> 'STJ'
@@ -520,6 +557,7 @@ type Service () =
                 reader.textOrNone "account_id" |> orEmptyString
                 reader.boolOrNone "refund_sequence" |> orEmptyString
                 reader.intOrNone "refund_sequence_id" |> IrSequence.exportId
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -529,10 +567,10 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountJournalPaymentMode (modelName : string) =
 
-        let header = [ "id" ; "sales_payment_mode_id/id" ; "buys_payment_mode_id/id" ]
+        let header = addStampHeadersTo [ "id" ; "sales_payment_mode_id/id" ; "buys_payment_mode_id/id" ]
 
         let sql = """
-            select aj.id, aj.sales_payment_mode_id, aj.buys_payment_mode_id
+            select aj.*
             from account_journal as aj
             where aj.code <> 'STJ'
 			and (aj.sales_payment_mode_id is not null or aj.buys_payment_mode_id is not null)
@@ -543,6 +581,7 @@ type Service () =
                 reader.intOrNone "id" |> AccountJournal.exportId
                 reader.intOrNone "sales_payment_mode_id" |> AccountPaymentMode.exportId
                 reader.intOrNone "buys_payment_mode_id" |> AccountPaymentMode.exportId
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -552,7 +591,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountBankingMandate (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "message_main_attachment_id/id" ; "format" ; "type"; "partner_bank_id/id"
             "partner_id/id" ; "company_id/.id" ; "unique_mandate_reference" ; "signature_date"
             "last_debit_date" ; "state"  ; "display_name"; "recurrent_sequence_type" ; "scheme"
@@ -580,6 +619,7 @@ type Service () =
                 reader.text "display_name"
                 reader.text "recurrent_sequence_type"
                 reader.text "scheme"
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -589,10 +629,10 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductPriceList (modelName : string) =
 
-        let header = [ "id" ; "name" ; "sequence"; "discount_policy" ; "active"]
+        let header = addStampHeadersTo [ "id" ; "name" ; "sequence"; "discount_policy" ; "active"]
 
         let sql = """
-            select ppl.id, ppl.name, ppl.sequence, ppl.discount_policy, ppl.active
+            select ppl.*
             from product_pricelist as ppl
             """
 
@@ -603,6 +643,7 @@ type Service () =
                 reader.intOrNone "sequence" |> orEmptyString
                 reader.textOrNone "discount_policy" |> orEmptyString
                 reader.boolOrNone "active" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -612,10 +653,12 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductCategory (modelName : string) =
 
-        let header = [ "id/.id" ; "id" ; "name" ; "complete_name"; "parent_id/.id"
-                       "parent_path" ; "removal_strategy_id/id" ; "packaging_reserve_method"
-                       "allow_negative_stock" ; "property_cost_method"
-                       "property_account_income_categ_id" ; "property_account_expense_categ_id"]
+        let header = addStampHeadersTo [
+            "id/.id" ; "id" ; "name" ; "complete_name"; "parent_id/.id"
+            "parent_path" ; "removal_strategy_id/id" ; "packaging_reserve_method"
+            "allow_negative_stock" ; "property_cost_method"
+            "property_account_income_categ_id/id" ; "property_account_expense_categ_id/id"
+        ]
 
         let sql = """
             with
@@ -689,6 +732,7 @@ type Service () =
                 reader.textOrNone "property_cost_method" |> orEmptyString
                 reader.textOrNone "property_account_income_categ_id" |> orEmptyString
                 reader.textOrNone "property_account_expense_categ_id" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -698,7 +742,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductTemplate (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "name" ; "default_code" ; "sequence" ; "detailed_type" ; "categ_id/id" ; "list_price"
             "sale_ok" ; "purchase_ok" ; "active" ; "sale_delay"
             "description" ; "description_picking" ;  "description_pickingin" ; "description_pickingout"
@@ -707,7 +751,7 @@ type Service () =
             "tracking" ; "use_expiration_date" ; "expiration_time" ; "use_time" ; "removal_time" ; "alert_time"
             "responsible_id/id" ; "service_type" ; "expense_policy" ; "purchase_method"
             "invoice_policy" ; "allow_negative_stock"
-            "property_account_income_id" ; "property_account_expense_id"
+            "property_account_income_id/id" ; "property_account_expense_id/id"
             "barcode" ; "volume" ; "weight"
         ]
 
@@ -753,19 +797,11 @@ type Service () =
                 where name = 'property_account_expense_id'
                 and res_id is not null
             )
-            select pt.id, pt.name, pt.default_code, pt.sequence, pt.detailed_type,
-			       pt.categ_id as categ_id_id, rpc.external_id as categ_id,
-                   pt.list_price, pt.sale_ok, pt.purchase_ok, pt.active, pt.sale_delay,
-                   pt.description, pt.description_picking, pt.description_pickingin,
-                   pt.description_pickingout, pt.description_purchase, pt.description_sale,
-                   pt.purchase_line_warn, pt.purchase_line_warn_msg, pt.sale_line_warn, pt.sale_line_warn_msg,
-				   pt.tracking, pt.use_expiration_date, pt.expiration_time,
-				   pt.use_time, pt.removal_time, pt.alert_time,
+            select pt.*,
+			       rpc.external_id as categ_external_id,
 				   rpr.responsible_id, rru.external_id as responsible_external_id,
-                   pt.service_type, pt.expense_policy, pt.purchase_method,
-                   pt.invoice_policy, pt.allow_negative_stock,
                    aai.code as property_account_income_id, aae.code as property_account_expense_id,
-				   rpp.barcode, rpp.volume, rpp.weight
+				   rpp.barcode, rpp.volume as rpp_volume, rpp.weight as rpp_weight
             from product_template as pt
             left join rel_account_income as rai on pt.id = rai.product_template_id
             left join rel_account_expense as rae on pt.id = rae.product_template_id
@@ -786,9 +822,9 @@ type Service () =
                 reader.intOrNone "sequence" |> orEmptyString
                 reader.textOrNone "detailed_type" |> orEmptyString
 
-                match reader.textOrNone "categ_id" with
-                | Some categ_id -> categ_id
-                | None -> reader.intOrNone "categ_id_id" |> ProductCategory.exportId
+                match reader.textOrNone "categ_external_id" with
+                | Some categ_external_id -> categ_external_id
+                | None -> reader.intOrNone "categ_id" |> ProductCategory.exportId
 
                 (reader.double "list_price") |> formatDecimal
 
@@ -831,8 +867,9 @@ type Service () =
                 reader.textOrNone "property_account_expense_id" |> orEmptyString
 
                 reader.textOrNone "barcode" |> orEmptyString
-                reader.doubleOrNone "volume" |> orEmptyString
-                reader.doubleOrNone "weight" |> orEmptyString
+                reader.doubleOrNone "rpp_volume" |> orEmptyString
+                reader.doubleOrNone "rpp_weight" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -842,7 +879,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductTaxes (modelName : string) =
 
-        let header = [ "id" ; "tax_id/id" ]
+        let header = addStampHeadersTo [ "id" ; "tax_id/id" ]
 
         let sql = """
             with
@@ -851,7 +888,8 @@ type Service () =
 				from ir_model_data
 				where model = 'account.tax'
 			)
-            select pt.id, rt.external_id as tax_id
+            select pt.*,
+                   rt.external_id as tax_external_id
             from product_template as pt
             left join product_taxes_rel as ptr on pt.id = ptr.prod_id
 			left join rel_taxes as rt on ptr.tax_id = rt.tax_id
@@ -861,9 +899,12 @@ type Service () =
         let readerFun (reader : RowReader) =
             [
                 reader.intOrNone "id" |> ProductTemplate.exportId
-                match reader.textOrNone "tax_id" with
-                | Some tax_id -> tax_id.Replace("l10n_es.", "account.")
+
+                match reader.textOrNone "tax_external_id" with
+                | Some tax_external_id -> tax_external_id.Replace("l10n_es.", "account.")
                 | None -> ""
+
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -873,7 +914,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductSupplierTaxes (modelName : string) =
 
-        let header = [ "id" ; "tax_id/id" ]
+        let header = addStampHeadersTo [ "id" ; "tax_id/id" ]
 
         let sql = """
             with
@@ -882,7 +923,8 @@ type Service () =
 				from ir_model_data
 				where model = 'account.tax'
 			)
-            select pt.id, rt.external_id as tax_id
+            select pt.*,
+                   rt.external_id as tax_external_id
             from product_template as pt
             left join product_supplier_taxes_rel as pstr on pt.id = pstr.prod_id
 			left join rel_taxes as rt on pstr.tax_id = rt.tax_id
@@ -892,9 +934,12 @@ type Service () =
         let readerFun (reader : RowReader) =
             [
                 reader.intOrNone "id" |> ProductTemplate.exportId
-                match reader.textOrNone "tax_id" with
-                | Some tax_id -> tax_id.Replace("l10n_es.", "account.")
+
+                match reader.textOrNone "tax_external_id" with
+                | Some tax_external_id -> tax_external_id.Replace("l10n_es.", "account.")
                 | None -> ""
+
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -904,7 +949,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductSupplierInfo (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "partner_id/id" ; "product_name" ; "product_code" ; "sequence" ; "min_qty" ; "price"
             "company_id/.id" ; "currency_id/.id" ; "date_start" ; "date_end" ; "product_tmpl_id/id" ; "delay"
         ]
@@ -931,6 +976,7 @@ type Service () =
                 reader.dateOnlyOrNone "date_end" |> dateOrEmptyString
                 reader.intOrNone "product_tmpl_id" |> ProductTemplate.exportId
                 reader.int "delay" |> string
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -940,13 +986,14 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProductPriceListItem (modelName : string) =
 
-        let header = [ "id" ; "applied_on" ; "product_tmpl_id/id" ; "categ_id/id" ; "product_id/id" ; "base"
-                       "pricelist_id/id" ; "compute_price" ; "fixed_price" ; "percent_price"
-                       "date_start" ; "date_end" ]
+        let header = addStampHeadersTo [
+            "id" ; "applied_on" ; "product_tmpl_id/id" ; "categ_id/id" ; "product_id/id" ; "base"
+            "pricelist_id/id" ; "compute_price" ; "fixed_price" ; "percent_price"
+            "date_start" ; "date_end"
+        ]
 
         let sql = """
-            select ppi.id, ppi.product_tmpl_id, ppi.categ_id, product_id, ppi.applied_on, ppi.base, ppi.pricelist_id,
-                   ppi.compute_price, ppi.fixed_price, ppi.percent_price, ppi.company_id, ppi.date_start, ppi.date_end
+            select ppi.*
             from product_pricelist_item as ppi
             order by ppi.create_date
             """
@@ -966,6 +1013,7 @@ type Service () =
                 reader.doubleOrNone "percent_price" |> formatDecimalOption
                 reader.dateTimeOrNone "date_start" |> dateTimeOrEmptyString
                 reader.dateTimeOrNone "date_end" |> dateTimeOrEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -975,9 +1023,11 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountPaymentMethod (modelName : string) =
 
-        let header = [ "id" ; "name" ; "code" ; "payment_type" ; "bank_account_required"
-                       "payment_order_only" ; "mandate_required" ; "pain_version"
-                       "convert_to_ascii" ]
+        let header = addStampHeadersTo [
+            "id" ; "name" ; "code" ; "payment_type" ; "bank_account_required"
+            "payment_order_only" ; "mandate_required" ; "pain_version"
+            "convert_to_ascii"
+        ]
 
         let sql = """
             with model_data as (
@@ -985,9 +1035,7 @@ type Service () =
                 from ir_model_data
                 where model = 'account.payment.method'
             )
-            select md.name as id, md.module, apm.name, apm.code, apm.payment_type, apm.bank_account_required,
-                   apm.payment_order_only, apm.mandate_required, apm.pain_version,
-                   apm.convert_to_ascii
+            select md.name as md_id, md.module, apm.*
             from account_payment_method as apm
             join model_data as md on apm.id = md.id
             --where apm.id <> 3
@@ -995,7 +1043,7 @@ type Service () =
 
         let readerFun (reader : RowReader) =
             [
-                reader.text "module" + "." + reader.text "id"
+                reader.text "module" + "." + reader.text "md_id"
                 reader.textOrNone "name" |> orEmptyString
                 reader.textOrNone "code" |> orEmptyString
                 reader.textOrNone "payment_type" |> orEmptyString
@@ -1006,6 +1054,7 @@ type Service () =
                 reader.textOrNone "pain_version" |> orEmptyString
 
                 reader.boolOrNone "convert_to_ascii" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -1017,15 +1066,14 @@ type Service () =
 
         let exportIdPrefix = AccountJournal.exportId <| Some ""
 
-        let header =
-            [
-                "id" ; "name" ; "bank_account_link" ; "fixed_journal_id/id"
-                "initiating_party_identifier" ; "initiating_party_issuer"
-                "initiating_party_scheme" ; "sepa_creditor_identifier"
-                "payment_method_id/id" ; "payment_order_ok" ; "default_payment_mode"
-                "default_invoice" ; "default_target_move" ; "default_date_type" ; "default_date_prefered"
-                "group_lines" ; "default_journal_ids/id" ; "variable_journal_ids/id"
-            ]
+        let header = addStampHeadersTo [
+            "id" ; "name" ; "bank_account_link" ; "fixed_journal_id/id"
+            "initiating_party_identifier" ; "initiating_party_issuer"
+            "initiating_party_scheme" ; "sepa_creditor_identifier"
+            "payment_method_id/id" ; "payment_order_ok" ; "default_payment_mode"
+            "default_invoice" ; "default_target_move" ; "default_date_type" ; "default_date_prefered"
+            "group_lines" ; "default_journal_ids/id" ; "variable_journal_ids/id"
+        ]
 
         let sql = $"""
             with model_data as (
@@ -1046,13 +1094,8 @@ type Service () =
                 group by payment_mode_id
             )
 
-            select apm.id, apm.name, apm.bank_account_link, apm.fixed_journal_id,
-                   apm.initiating_party_identifier, apm.initiating_party_issuer,
-                   apm.initiating_party_scheme, apm.sepa_creditor_identifier,
-                   (md.module || '.' || md.name) as payment_method_id, apm.payment_type,
-                   apm.payment_method_code, apm.payment_order_ok,
-                   apm.default_payment_mode, apm.default_invoice, apm.default_target_move,
-                   apm.default_date_type, apm.default_date_prefered, apm.group_lines,
+            select apm.*
+                   (md.module || '.' || md.name) as payment_method_id,
                    pmr.journal_ids as default_journal_ids,
                    pmv.journal_ids as variable_journal_ids
             from account_payment_mode as apm
@@ -1066,12 +1109,12 @@ type Service () =
                 reader.intOrNone "id" |> AccountPaymentMode.exportId
                 reader.text "name"
                 reader.textOrNone "bank_account_link" |> orEmptyString
-                reader.intOrNone "fixed_journal_id" |> AccountJournal.exportId
+                reader.intOrNone "fixed_journal_id/id" |> AccountJournal.exportId
                 reader.textOrNone "initiating_party_identifier" |> orEmptyString
                 reader.textOrNone "initiating_party_issuer" |> orEmptyString
                 reader.textOrNone "initiating_party_scheme" |> orEmptyString
                 reader.textOrNone "sepa_creditor_identifier" |> orEmptyString
-                reader.textOrNone "payment_method_id" |> orEmptyString
+                reader.textOrNone "payment_method_id/id" |> orEmptyString
 
                 reader.boolOrNone "payment_order_ok" |> orEmptyString
                 reader.textOrNone "default_payment_mode" |> orEmptyString
@@ -1084,6 +1127,7 @@ type Service () =
                 reader.boolOrNone "group_lines" |> orEmptyString
                 reader.textOrNone "default_journal_ids" |> orEmptyString
                 reader.textOrNone "variable_journal_ids" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -1094,12 +1138,11 @@ type Service () =
     static member exportAccountOpeningMove (modelName : string) =
 
         //--------------------------------------------------------------------------------------------------------------
-        let header =
-            [
-                "id" ; "date" ; "name" ; "partner_id" ; "ref" ; "journal_id" ; "line_ids/account_id"
-                "line_ids/partner_id/id" ; "line_ids/name" ; "line_ids/debit" ; "line_ids/credit"
-                "line_ids/date_maturity" ; "line_ids/payment_mode_id/id"
-            ]
+        let header = [
+            "id" ; "date" ; "name" ; "partner_id/id" ; "ref" ; "journal_id/id" ; "line_ids/account_id/id"
+            "line_ids/partner_id/id" ; "line_ids/name" ; "line_ids/debit" ; "line_ids/credit"
+            "line_ids/date_maturity" ; "line_ids/payment_mode_id/id"
+        ]
 
         let moveInfo =
             [
@@ -1145,8 +1188,8 @@ type Service () =
         let detailsWithBalanceReaderFun (reader : RowReader) =
             [
                 ""
-                reader.text "account_id"
-                reader.intOrNone "partner_id" |> ResPartner.exportId
+                reader.text "account_id/id"
+                reader.intOrNone "partner_id/id" |> ResPartner.exportId
                 reader.textOrNone "ref" |> orEmptyString
                 reader.double "debit" |> formatDecimal
                 reader.double "credit" |> formatDecimal
@@ -1196,7 +1239,7 @@ type Service () =
                 // if balance <> 0.0 then
                 if areNotEqual_0001 balance 0.0 then
                     ""
-                    reader.text "account_id"
+                    reader.text "account_id/id"
                     ""   // Partner_id
 
                     $"Asiento Apertura {OPENING_MOVE_YEAR}"   // ref
@@ -1268,8 +1311,8 @@ type Service () =
             [
                 if shouldGenerateRow() then
                     ""
-                    reader.text "account_id"
-                    reader.intOrNone "partner_id" |> ResPartner.exportId
+                    reader.text "account_id/id"
+                    reader.intOrNone "partner_id/id" |> ResPartner.exportId
 
                     match reader.textOrNone "ref" with
                     | Some ref -> ref
@@ -1284,7 +1327,7 @@ type Service () =
                     if reader.text "move_type" = "D" then 0.0 |> formatDecimal
 
                     reader.dateOnlyOrNone "date_maturity" |> dateOrEmptyString
-                    reader.intOrNone "payment_mode_id" |> AccountPaymentMode.exportId
+                    reader.intOrNone "payment_mode_id/id" |> AccountPaymentMode.exportId
             ]
         //--------------------------------------------------------------------------------------------------------------
 
@@ -1345,11 +1388,16 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportDefaultValues (modelName : string) =
 
-        let header = [ "id" ; "field_id/id" ; "condition" ; "json_value" ]
+        failwith "No entiendo este modelo."
+
+        let header = addStampHeadersTo [ "id" ; "field_id/id" ; "condition" ; "json_value" ]
 
         let data =
             [
-                [ Some 1 |> DefaultValue.exportId ; "account.field_account_move__journal_id" ; "" ; "0" ]
+                [
+                    Some 1 |> DefaultValue.exportId ; "account.field_account_move__journal_id/id" ; "" ; "0"
+                    "__export__.res_users_2" ; "2023-01-02 11:19:17" ; "base.user_root" ; "2023-06-16 17:18:58"
+                ]
             ]
 
         header::data
@@ -1359,6 +1407,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportAccountMove (modelName : string) =
 
+        failwith "Todavía no implementado al completo."
         //------------------------------------------------------------------------------------------------------------------
         let exportAccountMoveRelModel (modelName : string) (exportIdFun : ExportIdFun) (relFieldName : string) =
 
@@ -1384,11 +1433,11 @@ type Service () =
         Service.exportAccountMoveBase modelName
 
         [
-            ("message_main_attachment_id", IrAttachment.exportId)
-            ("payment_id", AccountPayment.exportId)
-            ("payment_order_id", AccountPaymentOrder.exportId)
-            ("reversed_entry_id", AccountMove.exportId)
-            ("statement_line_id", AccountBankStatementLine.exportId)
+            ("message_main_attachment_id/id", IrAttachment.exportId)
+            ("payment_id/id", AccountPayment.exportId)
+            ("payment_order_id/id", AccountPaymentOrder.exportId)
+            ("reversed_entry_id/id", AccountMove.exportId)
+            ("statement_line_id/id", AccountBankStatementLine.exportId)
         ]
         |> List.iter (fun (relModelName, exportId) -> exportAccountMoveRelModel modelName exportId relModelName)
     //------------------------------------------------------------------------------------------------------------------
@@ -1423,7 +1472,7 @@ type Service () =
         let header = [
             "id" ; "access_token" ; "always_tax_exigible" ; "amount_residual" ; "amount_residual_signed"
             "amount_tax" ; "amount_tax_signed" ; "amount_total" ; "amount_total_in_currency_signed"
-            "amount_total_signed" ; "amount_untaxed" ; "amount_untaxed_signed" ; "auto_post" ; "campaign_id"
+            "amount_total_signed" ; "amount_untaxed" ; "amount_untaxed_signed" ; "auto_post" ; "campaign_id/id"
             "commercial_partner_id/id" ; "company_id/.id" ; "currency_id/.id" ; "date"
             "financial_type" ; "fiscal_position_id/.id" ; "invoice_date" ; "invoice_date_due"
             "invoice_origin" ; "invoice_partner_display_name" ; "invoice_payment_term_id/id"
@@ -1432,7 +1481,7 @@ type Service () =
             "partner_id/id" ; "partner_shipping_id/id" ; "payment_mode_id/id"
             "payment_reference" ; "payment_state" ; "posted_before" ; "qr_code_method"
             "ref" ; "reference_type" ; "secure_sequence_number" ; "sequence_number"
-            "sequence_prefix" ; "source_id" ; "state" ; "stock_move_id/id"
+            "sequence_prefix" ; "source_id/id" ; "state" ; "stock_move_id/id"
             "tax_cash_basis_origin_move_id/id" ; "tax_cash_basis_rec_id/id" ; "team_id/.id"
             "thirdparty_invoice" ; "thirdparty_number" ; "to_check"
         ]
@@ -1440,7 +1489,7 @@ type Service () =
         let header = [
             "id" ; "access_token" ; "always_tax_exigible" ; "amount_residual" ; "amount_residual_signed"
             "amount_tax" ; "amount_tax_signed" ; "amount_total" ; "amount_total_in_currency_signed"
-            "amount_total_signed" ; "amount_untaxed" ; "amount_untaxed_signed" ; "auto_post" ; "campaign_id"
+            "amount_total_signed" ; "amount_untaxed" ; "amount_untaxed_signed" ; "auto_post" ; "campaign_id/id"
             "commercial_partner_id/id" ; "company_id/.id" ; "currency_id/.id" ; "date"
             "financial_type" ; "fiscal_position_id/.id" ; "invoice_date" ; "invoice_date_due"
             "invoice_origin" ; "invoice_partner_display_name" ; "invoice_payment_term_id/id"
@@ -1473,29 +1522,29 @@ type Service () =
                 reader.double "amount_untaxed_signed" |> formatDecimal
                 "No"         // auto_post
                 ""           // campaign_id
-                reader.intOrNone "commercial_partner_id" |> ResPartner.exportId
+                reader.intOrNone "commercial_partner_id/id" |> ResPartner.exportId
                 "1"          // company_id
                 "126"        // currency_id
                 reader.dateOnlyOrNone "date" |> dateOrEmptyString
                 reader.textOrNone "financial_type" |> orEmptyString
-                reader.intOrNone "fiscal_position_id" |> orEmptyString
+                reader.intOrNone "fiscal_position_id/id" |> orEmptyString
                 reader.dateOnlyOrNone "invoice_date" |> dateOrEmptyString
                 reader.dateOnlyOrNone "invoice_date_due" |> dateOrEmptyString
                 reader.textOrNone "invoice_origin" |> orEmptyString
                 reader.textOrNone "invoice_partner_display_name" |> orEmptyString
-                reader.intOrNone "invoice_payment_term_id" |> AccountPaymentTerm.exportId
+                reader.intOrNone "invoice_payment_term_id/id" |> AccountPaymentTerm.exportId
                 reader.textOrNone "invoice_source_email" |> orEmptyString
-                reader.intOrNone "invoice_user_id" |> ResUsers.exportId
+                reader.intOrNone "invoice_user_id/id" |> ResUsers.exportId
                 "false"      // is_move_sent
-                reader.intOrNone "journal_id" |> AccountJournal.exportId
+                reader.intOrNone "journal_id/id" |> AccountJournal.exportId
                 // reader.text "move_type"
                 reader.text "name"
                 // reader.textOrNone "narration" |> orEmptyString
                 // reader.bool "not_in_mod347" |> string
-                // reader.intOrNone "partner_bank_id" |> ResPartnerBank.exportId
-                reader.intOrNone "partner_id" |> ResPartner.exportId
-                // reader.intOrNone "partner_shipping_id" |> ResPartner.exportId
-                // reader.intOrNone "payment_mode_id" |> AccountPaymentMode.exportId
+                // reader.intOrNone "partner_bank_id/id" |> ResPartnerBank.exportId
+                reader.intOrNone "partner_id/id" |> ResPartner.exportId
+                // reader.intOrNone "partner_shipping_id/id" |> ResPartner.exportId
+                // reader.intOrNone "payment_mode_id/id" |> AccountPaymentMode.exportId
                 // reader.textOrNone "payment_reference" |> orEmptyString
                 // reader.textOrNone "payment_state" |> orEmptyString
                 // reader.boolOrNone "posted_before" |> orEmptyString
@@ -1505,12 +1554,12 @@ type Service () =
                 // reader.intOrNone "secure_sequence_number" |> orEmptyString
                 // reader.int "sequence_number" |> string
                 // reader.text "sequence_prefix" |> string
-                // reader.intOrNone "source_id" |> orEmptyString
+                // reader.intOrNone "source_id/id" |> orEmptyString
                 // "draft"                                 //  reader.text "state" |> string
-                // reader.intOrNone "stock_move_id" |> orEmptyString
-                // reader.intOrNone "tax_cash_basis_origin_move_id" |> orEmptyString
-                // reader.intOrNone "tax_cash_basis_rec_id" |> orEmptyString
-                // reader.int "team_id" |> string
+                // reader.intOrNone "stock_move_id/id" |> orEmptyString
+                // reader.intOrNone "tax_cash_basis_origin_move_id/id" |> orEmptyString
+                // reader.intOrNone "tax_cash_basis_rec_id/id" |> orEmptyString
+                // reader.int "team_id/id" |> string
                 // reader.bool "thirdparty_invoice" |> string
                 // reader.textOrNone "thirdparty_number" |> orEmptyString
                 // reader.boolOrNone "to_check" |> orEmptyString
@@ -1523,6 +1572,8 @@ type Service () =
 
     //------------------------------------------------------------------------------------------------------------------
     static member exportIrAttachment (modelName : string) =
+
+        failwith "Lo lógico sería hacerlos desde un script de shell."
 
         let header = [ "id" ; "res_model" ; "res_id/id" ; "name" ; "store_fname" ; "mimetype" ]
 
@@ -1558,7 +1609,7 @@ type Service () =
                 if modelFunMap.ContainsKey resModel then
                     reader.intOrNone "id" |> IrAttachment.exportId
                     resModel
-                    reader.int "res_id" |> Some |> modelFunMap[resModel]
+                    reader.int "res_id/id" |> Some |> modelFunMap[resModel]
                     reader.text "name"
                     reader.text "store_fname"
                     reader.text "mimetype"
@@ -1570,6 +1621,8 @@ type Service () =
 
     //------------------------------------------------------------------------------------------------------------------
     static member exportResGroupsUsersRel (modelName : string) =
+
+        // Estos ficheros generados tienen importador propio y no deben tener stamp fields.
 
         let sql = $"""
             select login
@@ -1644,7 +1697,7 @@ type Service () =
             else
                 lastValue
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "active" ; "code" ; "implementation" ; "name" ; "number_increment"
             "number_next" ; "number_next_actual" ; "padding" ; "prefix" ; "suffix" ; "use_date_range"
         ]
@@ -1683,6 +1736,7 @@ type Service () =
                 reader.textOrNone "prefix" |> orEmptyString
                 reader.textOrNone "suffix" |> orEmptyString
                 reader.boolOrNone "use_date_range" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -1692,7 +1746,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportIrSequenceDateRange (modelName : string) =
 
-        let header = [ "id" ; "date_from" ; "date_to" ; "sequence_id/id" ; "number_next" ]
+        let header = addStampHeadersTo [ "id" ; "date_from" ; "date_to" ; "sequence_id/id" ; "number_next" ]
 
         let sql = """
             with
@@ -1719,6 +1773,7 @@ type Service () =
                 | None -> reader.int "sequence_id" |> Some |> IrSequence.exportId
 
                 reader.int "number_next" |> string
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -1727,6 +1782,8 @@ type Service () =
 
     //------------------------------------------------------------------------------------------------------------------
     static member exportDeysankaResConfigSettings (modelName : string) =
+
+        // Importador propio -> Sin stamp fields.
 
         //--------------------------------------------------------------------------------------------------------------
         let getValueAsString (readerFun :RowReader -> string) (record_id : int) (fieldName : string) : string =
@@ -1771,32 +1828,32 @@ type Service () =
                 "deysanka_account.bad_reconcile_exclude_accounts", "bad_reconcile_exclude_accounts"
                 "deysanka_account.bank_batch_charges_prefix", "bank_batch_charges_prefix"
                 "deysanka_account.bank_batch_credit_prefix", "bank_batch_credit_prefix"
-                "deysanka_account.bank_charges_client_journal_id", "bank_charges_client_journal_id"
-                "deysanka_account.bank_charges_client_payment_mode_id", "bank_charges_client_payment_mode_id"
-                "deysanka_account.bank_charges_client_payment_term_id", "bank_charges_client_payment_term_id"
-                "deysanka_account.bank_charges_client_product_id", "bank_charges_client_product_id"
-                "deysanka_account.bank_charges_partner_id", "bank_charges_partner_id"
-                "deysanka_account.bank_charges_product_id", "bank_charges_product_id"
-                "deysanka_account.bank_charges_ret_journal_id", "bank_charges_ret_journal_id"
-                "deysanka_account.cash_statement_dey_cash_journal_id", "cash_statement_dey_cash_journal_id"
-                "deysanka_account.cash_statement_eb_cash_journal_id", "cash_statement_eb_cash_journal_id"
-                "deysanka_account.closing_journal_id", "closing_journal_id"
+                "deysanka_account.bank_charges_client_journal_id/id", "bank_charges_client_journal_id/id"
+                "deysanka_account.bank_charges_client_payment_mode_id/id", "bank_charges_client_payment_mode_id/id"
+                "deysanka_account.bank_charges_client_payment_term_id/id", "bank_charges_client_payment_term_id/id"
+                "deysanka_account.bank_charges_client_product_id/id", "bank_charges_client_product_id/id"
+                "deysanka_account.bank_charges_partner_id/id", "bank_charges_partner_id/id"
+                "deysanka_account.bank_charges_product_id/id", "bank_charges_product_id/id"
+                "deysanka_account.bank_charges_ret_journal_id/id", "bank_charges_ret_journal_id/id"
+                "deysanka_account.cash_statement_dey_cash_journal_id/id", "cash_statement_dey_cash_journal_id/id"
+                "deysanka_account.cash_statement_eb_cash_journal_id/id", "cash_statement_eb_cash_journal_id/id"
+                "deysanka_account.closing_journal_id/id", "closing_journal_id/id"
                 "deysanka_account.deysanka_checks_proxy_url", "deysanka_checks_proxy_url"
-                "deysanka_account.monthly_sales_cash_journal_id", "monthly_sales_cash_journal_id"
-                "deysanka_account.monthly_sales_journal_id", "monthly_sales_journal_id"
-                "deysanka_account.monthly_sales_partner_id", "monthly_sales_partner_id"
-                "deysanka_account.monthly_sales_payment_mode_id", "monthly_sales_payment_mode_id"
-                "deysanka_account.monthly_sales_payment_term_id", "monthly_sales_payment_term_id"
-                "deysanka_account.monthly_sales_product_ptc_id", "monthly_sales_product_ptc_id"
-                "deysanka_account.monthly_sales_product_pte_id", "monthly_sales_product_pte_id"
-                "deysanka_account.monthly_sales_product_ptt_id", "monthly_sales_product_ptt_id"
+                "deysanka_account.monthly_sales_cash_journal_id/id", "monthly_sales_cash_journal_id/id"
+                "deysanka_account.monthly_sales_journal_id/id", "monthly_sales_journal_id/id"
+                "deysanka_account.monthly_sales_partner_id/id", "monthly_sales_partner_id/id"
+                "deysanka_account.monthly_sales_payment_mode_id/id", "monthly_sales_payment_mode_id/id"
+                "deysanka_account.monthly_sales_payment_term_id/id", "monthly_sales_payment_term_id/id"
+                "deysanka_account.monthly_sales_product_ptc_id/id", "monthly_sales_product_ptc_id/id"
+                "deysanka_account.monthly_sales_product_pte_id/id", "monthly_sales_product_pte_id/id"
+                "deysanka_account.monthly_sales_product_ptt_id/id", "monthly_sales_product_ptt_id/id"
                 "deysanka_account.monthly_sales_tpv_code", "monthly_sales_tpv_code"
-                "deysanka_account.partner_deysanka_id", "partner_deysanka_id"
+                "deysanka_account.partner_deysanka_id/id", "partner_deysanka_id/id"
                 "deysanka_account.tag_name_mensual", "tag_name_mensual"
-                "deysanka_account.unpaid_inv_account_id", "unpaid_inv_account_id"
+                "deysanka_account.unpaid_inv_account_id/id", "unpaid_inv_account_id/id"
                 "deysanka_account.unpaid_inv_payment_mode_by_customer", "unpaid_inv_payment_mode_by_customer"
                 "deysanka_account.unpaid_inv_ref_prefix", "unpaid_inv_ref_prefix"
-                "deysanka_account.web_sales_partner_id", "web_sales_partner_id"
+                "deysanka_account.web_sales_partner_id/id", "web_sales_partner_id/id"
                 "deysanka_account.web_sales_tpv_code", "web_sales_tpv_code"
             ]
         //--------------------------------------------------------------------------------------------------------------
@@ -1804,50 +1861,50 @@ type Service () =
         //--------------------------------------------------------------------------------------------------------------
         let exportFunMap =
             Map [
-                "bank_charges_client_journal_id", AccountJournal.exportId
-                "bank_charges_client_payment_mode_id", AccountPaymentMode.exportId
-                "bank_charges_client_payment_term_id", AccountPaymentTerm.exportId
-                "bank_charges_client_product_id", ProductTemplate.exportId
-                "bank_charges_partner_id", ResPartner.exportId
-                "bank_charges_product_id", ProductTemplate.exportId
-                "bank_charges_ret_journal_id", AccountJournal.exportId
-                "cash_statement_dey_cash_journal_id", AccountJournal.exportId
-                "cash_statement_eb_cash_journal_id", AccountJournal.exportId
-                "closing_journal_id", AccountJournal.exportId
-                "monthly_sales_cash_journal_id", AccountJournal.exportId
-                "monthly_sales_journal_id", AccountJournal.exportId
-                "monthly_sales_partner_id", ResPartner.exportId
-                "monthly_sales_payment_mode_id", AccountPaymentMode.exportId
-                "monthly_sales_payment_term_id", AccountPaymentTerm.exportId
-                "monthly_sales_product_ptc_id", ProductTemplate.exportId
-                "monthly_sales_product_pte_id", ProductTemplate.exportId
-                "monthly_sales_product_ptt_id", ProductTemplate.exportId
-                "partner_deysanka_id", ResPartner.exportId
-                "unpaid_inv_account_id", AccountAccount.exportId
+                "bank_charges_client_journal_id/id", AccountJournal.exportId
+                "bank_charges_client_payment_mode_id/id", AccountPaymentMode.exportId
+                "bank_charges_client_payment_term_id/id", AccountPaymentTerm.exportId
+                "bank_charges_client_product_id/id", ProductTemplate.exportId
+                "bank_charges_partner_id/id", ResPartner.exportId
+                "bank_charges_product_id/id", ProductTemplate.exportId
+                "bank_charges_ret_journal_id/id", AccountJournal.exportId
+                "cash_statement_dey_cash_journal_id/id", AccountJournal.exportId
+                "cash_statement_eb_cash_journal_id/id", AccountJournal.exportId
+                "closing_journal_id/id", AccountJournal.exportId
+                "monthly_sales_cash_journal_id/id", AccountJournal.exportId
+                "monthly_sales_journal_id/id", AccountJournal.exportId
+                "monthly_sales_partner_id/id", ResPartner.exportId
+                "monthly_sales_payment_mode_id/id", AccountPaymentMode.exportId
+                "monthly_sales_payment_term_id/id", AccountPaymentTerm.exportId
+                "monthly_sales_product_ptc_id/id", ProductTemplate.exportId
+                "monthly_sales_product_pte_id/id", ProductTemplate.exportId
+                "monthly_sales_product_ptt_id/id", ProductTemplate.exportId
+                "partner_deysanka_id/id", ResPartner.exportId
+                "unpaid_inv_account_id/id", AccountAccount.exportId
                 "unpaid_inv_payment_mode_by_customer", AccountPaymentMode.exportId
-                "web_sales_partner_id", ResPartner.exportId
+                "web_sales_partner_id/id", ResPartner.exportId
             ]
         //--------------------------------------------------------------------------------------------------------------
 
         //--------------------------------------------------------------------------------------------------------------
         let getJournalConfigData (deyCashJournalId : int) (ebCashJournalId : int) =
             [
-                [ "cash_statement_dey_bank_journal_id"
-                  getIntValueAsString deyCashJournalId "bank_journal_id" |> Some |> AccountJournal.exportId ]
+                [ "cash_statement_dey_bank_journal_id/id"
+                  getIntValueAsString deyCashJournalId "bank_journal_id/id" |> Some |> AccountJournal.exportId ]
                 [ "cash_statement_dey_cash_deposit_label"
                   getStringValue deyCashJournalId "bank_cash_move_label" ]
-                [ "cash_statement_dey_sales_payment_mode_id"
-                  getIntValueAsString deyCashJournalId "sales_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
-                [ "cash_statement_dey_buys_payment_mode_id"
-                  getIntValueAsString deyCashJournalId "buys_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
-                [ "cash_statement_eb_bank_journal_id"
-                  getIntValueAsString ebCashJournalId "bank_journal_id" |> Some |> AccountJournal.exportId ]
+                [ "cash_statement_dey_sales_payment_mode_id/id"
+                  getIntValueAsString deyCashJournalId "sales_payment_mode_id/id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_dey_buys_payment_mode_id/id"
+                  getIntValueAsString deyCashJournalId "buys_payment_mode_id/id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_eb_bank_journal_id/id"
+                  getIntValueAsString ebCashJournalId "bank_journal_id/id" |> Some |> AccountJournal.exportId ]
                 [ "cash_statement_eb_cash_deposit_label"
                   getStringValue ebCashJournalId "bank_cash_move_label" ]
-                [ "cash_statement_eb_sales_payment_mode_id"
-                  getIntValueAsString ebCashJournalId "sales_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
-                [ "cash_statement_eb_buys_payment_mode_id"
-                  getIntValueAsString ebCashJournalId "buys_payment_mode_id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_eb_sales_payment_mode_id/id"
+                  getIntValueAsString ebCashJournalId "sales_payment_mode_id/id" |> Some |> AccountPaymentMode.exportId ]
+                [ "cash_statement_eb_buys_payment_mode_id/id"
+                  getIntValueAsString ebCashJournalId "buys_payment_mode_id/id" |> Some |> AccountPaymentMode.exportId ]
             ]
         //--------------------------------------------------------------------------------------------------------------
 
@@ -1872,8 +1929,8 @@ type Service () =
 
         let configData = header::ISqlBroker.getExportData sql readerFun
 
-        let deyCashJournalId = getIdFromData configData "cash_statement_dey_cash_journal_id"
-        let ebCashJournalId = getIdFromData configData "cash_statement_eb_cash_journal_id"
+        let deyCashJournalId = getIdFromData configData "cash_statement_dey_cash_journal_id/id"
+        let ebCashJournalId = getIdFromData configData "cash_statement_eb_cash_journal_id/id"
 
         let journalConfigData = getJournalConfigData deyCashJournalId ebCashJournalId
 
@@ -1884,7 +1941,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportStockWarehouse (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "name" ; "active" ; "company_id/.id" ; "partner_id/id" ; "view_location_id/id"
             "lot_stock_id/id" ; "code" ; "reception_steps" ; "delivery_steps"
             "wh_input_stock_loc_id/id" ; "wh_qc_stock_loc_id/id" ; "wh_output_stock_loc_id/id"
@@ -1999,6 +2056,7 @@ type Service () =
 
                 reader.int "sequence" |> string
                 reader.bool "buy_to_resupply" |> string
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -2008,12 +2066,12 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportStockLocation (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id/.id" ; "id" ; "name" ; "complete_name" ; "active" ; "usage" ; "location_id/.id" ;
             "comment" ; "posx" ; "posy" ; "posz" ; "parent_path" ; "company_id/.id" ;
             "scrap_location" ; "return_location" ; "removal_strategy_id/id" ; "barcode" ;
             "cyclic_inventory_frequency" ; "last_inventory_date" ; "next_inventory_date" ;
-            "storage_category_id" ; "valuation_in_account_id" ; "valuation_out_account_id" ;
+            "storage_category_id/id" ; "valuation_in_account_id/id" ; "valuation_out_account_id/id" ;
             "allow_negative_stock"
         ]
 
@@ -2070,6 +2128,7 @@ type Service () =
                 reader.intOrNone "valuation_in_account_id" |> AccountAccount.exportId
                 reader.intOrNone "valuation_out_account_id" |> AccountAccount.exportId
                 reader.boolOrNone "allow_negative_stock" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -2079,12 +2138,12 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportStockPickingType (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "name" ; "color" ; "sequence" ; "sequence_id/id" ; "sequence_code" ; "default_location_src_id/id"
             "default_location_dest_id/id" ; "code" ; "return_picking_type_id/id" ; "show_entire_packs"
             "warehouse_id/id" ; "active" ; "use_create_lots" ; "use_existing_lots" ; "print_label"
             "show_operations" ; "show_reserved" ; "reservation_method" ; "reservation_days_before"
-            "reservation_days_before_priority" ; "barcode" ; "company_id"
+            "reservation_days_before_priority" ; "barcode" ; "company_id/id"
         ]
 
         let sql = """
@@ -2146,6 +2205,7 @@ type Service () =
                 reader.intOrNone "reservation_days_before_priority" |> orEmptyString
                 reader.textOrNone "barcode" |> orEmptyString
                 reader.int "company_id" |> string
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -2155,7 +2215,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportProcurementGroup (modelName : string) =
 
-        let header = [ "id" ; "partner_id/id" ; "name" ; "move_type" ; "sale_id/id" ]
+        let header = addStampHeadersTo [ "id" ; "partner_id/id" ; "name" ; "move_type" ; "sale_id/id" ]
 
         let sql = """
             select *
@@ -2170,6 +2230,7 @@ type Service () =
                 reader.text "name"
                 reader.text "move_type"
                 reader.intOrNone "sale_id" |> SaleOrder.exportId
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -2179,12 +2240,12 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportStockPicking (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "message_main_attachment_id/id" ; "name" ; "origin" ; "note" ; "backorder_id/id" ;
             "move_type" ; "state" ; "group_id/id" ; "priority" ; "scheduled_date" ; "date_deadline" ;
             "has_deadline_issue" ; "date" ; "date_done" ; "location_id/id" ; "location_dest_id/id" ;
             "picking_type_id/id" ; "partner_id/id" ; "company_id/.id" ; "user_id/id" ; "owner_id/id" ; "printed" ;
-            "is_locked" ; "immediate_transfer" ; "sale_id"
+            "is_locked" ; "immediate_transfer" ; "sale_id/id"
         ]
 
         let sql = """
@@ -2250,6 +2311,81 @@ type Service () =
                 reader.boolOrNone "is_locked" |> orEmptyString
                 reader.boolOrNone "immediate_transfer" |> orEmptyString
                 reader.intOrNone "sale_id" |> SaleOrder.exportId
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportStockMove (modelName : string) =
+
+        failwith "No está terminado."
+
+        let header = addStampHeadersTo [
+            "id" ; "name" ; "color" ; "sequence" ; "sequence_id/id" ; "sequence_code" ; "default_location_src_id/id"
+            "default_location_dest_id/id" ; "code" ; "return_picking_type_id/id" ; "show_entire_packs"
+            "warehouse_id/id" ; "active" ; "use_create_lots" ; "use_existing_lots" ; "print_label"
+            "show_operations" ; "show_reserved" ; "reservation_method" ; "reservation_days_before"
+            "reservation_days_before_priority" ; "barcode" ; "company_id/id"
+        ]
+
+        let sql = """
+            with
+			rel_stock_location as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.location'
+                and module not like '\_\_%'
+            )
+            select rsl.external_id as location_external_id,
+                   rsld.external_id as location_dest_external_id,
+                   sm.*
+            from stock_move as sm
+            left join rel_stock_location as rsl on sm.location_id = rsl.id
+            left join rel_stock_location as rsld on sm.location_dest_id = rsld.id
+            order by sm.create_date
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportStockMoveLine (modelName : string) =
+
+        failwith "No está terminado."
+
+        let header = addStampHeadersTo [
+            "id" ;
+        ]
+
+        let sql = """
+            with
+			rel_stock_location as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.location'
+                and module not like '\_\_%'
+            )
+            select rsl.external_id as location_external_id,
+                   rsld.external_id as location_dest_external_id,
+                   sm.*
+            from stock_move as sm
+            left join rel_stock_location as rsl on sm.location_id = rsl.id
+            left join rel_stock_location as rsld on sm.location_dest_id = rsld.id
+            order by sm.create_date
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
@@ -2259,7 +2395,7 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportStockLot (modelName : string) =
 
-        let header = [
+        let header = addStampHeadersTo [
             "id" ; "message_main_attachment_id/id" ; "name" ; "ref" ; "product_id/id" ; "product_uom_name"
             "note" ; "company_id/.id" ; "expiration_date" ; "use_date" ; "removal_date"
             "alert_date" ; "product_expiry_reminded" ; "mostrar"
@@ -2287,6 +2423,7 @@ type Service () =
                 reader.dateTimeOrNone "alert_date" |> dateTimeOrEmptyString
                 reader.boolOrNone "product_expiry_reminded" |> orEmptyString
                 reader.boolOrNone "mostrar" |> orEmptyString
+                yield! readStampFields reader
             ]
 
         header::ISqlBroker.getExportData sql readerFun
