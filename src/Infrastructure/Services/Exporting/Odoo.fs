@@ -2534,3 +2534,66 @@ type Service () =
         header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportSaleOrderLine (modelName : string) =
+
+        let header = addStampHeadersTo [
+            "id" ; "order_id/id" ; "name" ; "sequence" ; "invoice_status" ; "price_unit" ; "price_subtotal" ;
+            "price_tax" ; "price_total" ; "price_reduce" ; "price_reduce_taxinc" ; "price_reduce_taxexcl" ;
+            "discount" ; "product_template_id/id" ; "product_uom_qty" ; "product_uom/.id"
+            "qty_delivered_method" ; "qty_delivered" ; "qty_delivered_manual" ; "qty_to_invoice" ; "qty_invoiced" ;
+            "untaxed_amount_invoiced" ; "untaxed_amount_to_invoice" ; "salesman_id/id"
+            "company_id/.id" ; "order_partner_id/id" ; "is_expense" ; "is_downpayment" ; "state" ;
+            "customer_lead" ; "display_type" ; "is_service"
+        ]
+
+        let sql = """
+            select pt.id as product_template_id,
+                   sol.*
+            from sale_order_line as sol
+            join product_product as pp on sol.product_id = pp.id
+            join product_template as pt on pp.product_tmpl_id = pt.id
+            order by sol.order_id, sol.sequence, sol.id
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> SaleOrderLine.exportId
+                reader.int "order_id" |> Some |> SaleOrder.exportId
+                reader.text "name"
+                reader.int "sequence" |> string
+                reader.textOrNone "invoice_status" |> orEmptyString
+                reader.double "price_unit" |> formatDecimal
+                reader.doubleOrNone "price_subtotal" |> formatDecimalOption
+                reader.doubleOrNone "price_tax" |> formatDecimalOption
+                reader.doubleOrNone "price_total" |> formatDecimalOption
+                reader.doubleOrNone "price_reduce" |> formatDecimalOption
+                reader.doubleOrNone "price_reduce_taxinc" |> formatDecimalOption
+                reader.doubleOrNone "price_reduce_taxexcl" |> formatDecimalOption
+                reader.doubleOrNone "discount" |> formatDecimalOption
+                reader.int "product_template_id" |> Some |> ProductTemplate.exportId
+                reader.double "product_uom_qty" |> formatDecimal
+                reader.intOrNone "product_uom" |> orEmptyString
+                reader.textOrNone "qty_delivered_method" |> orEmptyString
+                reader.doubleOrNone "qty_delivered" |> formatDecimalOption
+                reader.doubleOrNone "qty_delivered_manual" |> formatDecimalOption
+                reader.doubleOrNone "qty_to_invoice" |> formatDecimalOption
+                reader.doubleOrNone "qty_invoiced" |> formatDecimalOption
+                reader.doubleOrNone "untaxed_amount_invoiced" |> formatDecimalOption
+                reader.doubleOrNone "untaxed_amount_to_invoice" |> formatDecimalOption
+                reader.intOrNone "salesman_id" |> ResUsers.exportId
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.intOrNone "order_partner_id" |> ResPartner.exportId
+                reader.boolOrNone "is_expense" |> orEmptyString
+                reader.boolOrNone "is_downpayment" |> orEmptyString
+                reader.textOrNone "state" |> orEmptyString
+                reader.double "customer_lead" |> string
+                reader.textOrNone "display_type" |> orEmptyString
+                reader.boolOrNone "is_service" |> orEmptyString
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------

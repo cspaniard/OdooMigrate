@@ -134,6 +134,9 @@ type ProductProduct = ProductProduct with
 type SaleOrder = SaleOrder with
     static member exportId idOption = exportId "sale_order" idOption
 
+type SaleOrderLine = SaleOrderLine with
+    static member exportId idOption = exportId "sale_order_line" idOption
+
 type StockProductionLot = StockProductionLot with
     static member exportId idOption = exportId "stock_production_lot" idOption
 
