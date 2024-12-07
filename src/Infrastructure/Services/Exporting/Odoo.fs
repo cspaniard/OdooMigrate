@@ -83,6 +83,48 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
+    static let getSequenceName (sequenceId : int) =
+        $"ir_sequence_{sequenceId:D3}"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static let getDateRangeSequenceName (sequenceId : int) (sequenceDateRangeId : int) =
+        $"ir_sequence_{sequenceId:D3}_{sequenceDateRangeId:D3}"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static let getSequenceNumberNextActual (sequenceName : string) =
+        // Esta función sólo es válida para secuencias de tipo standard.
+
+        let sql = $"""
+            select
+                last_value,
+                (select increment_by
+                 from pg_sequences
+                 where sequencename = '{sequenceName}'),
+                is_called
+            from {sequenceName}
+        """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "last_value"
+                reader.int "increment_by"
+                if reader.bool "is_called" then 1 else 0
+            ]
+
+        let sequenceData = ISqlBroker.getExportData sql readerFun
+        let lastValue = sequenceData[0][0]
+        let incrementBy = sequenceData[0][1]
+        let isCalled = sequenceData[0][2]
+
+        if isCalled = 1 then
+            lastValue + incrementBy
+        else
+            lastValue
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
     static member exportResBank (modelName : string) =
 
         let header = addStampHeadersTo [ "id" ; "name" ; "bic" ; "country/id" ]
@@ -1665,38 +1707,6 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportIrSequence (modelName : string) =
 
-        let getSequenceNumberNextActual (sequenceId : int) =
-            // Esta función sólo es válida para secuencias de tipo standard.
-
-            let sequenceName = $"ir_sequence_{sequenceId:D3}"
-
-            let sql = $"""
-                select
-                    last_value,
-                    (select increment_by
-                     from pg_sequences
-                     where sequencename = '{sequenceName}'),
-                    is_called
-                from {sequenceName}
-            """
-
-            let readerFun (reader : RowReader) =
-                [
-                    reader.int "last_value"
-                    reader.int "increment_by"
-                    if reader.bool "is_called" then 1 else 0
-                ]
-
-            let sequenceData = ISqlBroker.getExportData sql readerFun
-            let lastValue = sequenceData[0][0]
-            let incrementBy = sequenceData[0][1]
-            let isCalled = sequenceData[0][2]
-
-            if isCalled = 1 then
-                lastValue + incrementBy
-            else
-                lastValue
-
         let header = addStampHeadersTo [
             "id" ; "active" ; "code" ; "implementation" ; "name" ; "number_increment"
             "number_next" ; "number_next_actual" ; "padding" ; "prefix" ; "suffix" ; "use_date_range"
@@ -1729,7 +1739,8 @@ type Service () =
                 reader.int "number_next" |> string
 
                 match reader.text "implementation" with
-                | "standard" -> getSequenceNumberNextActual (reader.int "id") |> string
+                | "standard" -> getSequenceName (reader.int "id")
+                                |> getSequenceNumberNextActual |> string
                 | _ -> ""
 
                 reader.int "padding" |> string
@@ -1746,7 +1757,9 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportIrSequenceDateRange (modelName : string) =
 
-        let header = addStampHeadersTo [ "id" ; "date_from" ; "date_to" ; "sequence_id/id" ; "number_next" ]
+        let header = addStampHeadersTo [
+            "id" ; "date_from" ; "date_to" ; "sequence_id/id" ; "number_next" ; "number_next_actual"
+        ]
 
         let sql = """
             with
@@ -1756,8 +1769,11 @@ type Service () =
                 where model = 'ir.sequence'
                 and module not like '\_\_%'
 			)
-            select rs.external_id as sequence_external_id, irsdr.*
+            select rs.external_id as sequence_external_id,
+                   irs.implementation,
+                   irsdr.*
             from ir_sequence_date_range as irsdr
+            join ir_sequence as irs on irsdr.sequence_id = irs.id
             left join rel_sequence as rs on irsdr.sequence_id = rs.id
             order by date_from
             """
@@ -1773,6 +1789,12 @@ type Service () =
                 | None -> reader.int "sequence_id" |> Some |> IrSequence.exportId
 
                 reader.int "number_next" |> string
+
+                match reader.text "implementation" with
+                | "standard" -> getDateRangeSequenceName (reader.int "sequence_id") (reader.int "id")
+                                |> getSequenceNumberNextActual |> string
+                | _ -> ""
+
                 yield! readStampFields reader
             ]
 
