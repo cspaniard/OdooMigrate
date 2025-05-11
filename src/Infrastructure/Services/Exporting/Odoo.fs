@@ -328,6 +328,58 @@ type Service () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
+    static member exportIrPropertyDefaults (modelName : string) =
+
+        let header = addStampHeadersTo [
+            "model" ; "referenced_model" ; "name" ; "external_id/id"
+        ]
+
+        let sql = """
+            with
+            rel_external_id as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where module not like '\_\_%'
+            ),
+            rel_ir_property as (
+                select
+                    split_part(value_reference, ',', 1)::varchar as referenced_model,
+                    split_part(value_reference, ',', 2)::integer as record_id,
+                    *
+                from ir_property
+            )
+            select imf.model, rei.external_id, rip.*
+            from rel_ir_property as rip
+            join ir_model_fields as imf on rip.fields_id = imf.id
+            left join rel_external_id as rei
+                on rip.record_id = rei.id
+                and rip.referenced_model = rei.model
+            where res_id is null
+            and value_reference is not null
+            order by imf.model, name
+        """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.text "model"
+                reader.text "referenced_model"
+                reader.text "name"
+                match reader.textOrNone "external_id" with
+                | Some externalId ->
+                    if externalId.Contains "l10n_es.1_account_common"
+                    then externalId.Replace("l10n_es.", "account.")
+                    else externalId
+                | None when reader.text "name" = "property_stock_journal" ->
+                    "account.1_inventory_valuation"
+                | None -> reader.int "record_id" |> Some |> Helpers.exportId (reader.text "referenced_model")
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
     static member exportResPartner (modelName : string) =
 
         //--------------------------------------------------------------------------------------------------------------
