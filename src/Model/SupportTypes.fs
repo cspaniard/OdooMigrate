@@ -1,7 +1,7 @@
 namespace Model
 
 module Constants =
-    let [<Literal>] OPENING_MOVE_YEAR = "2023"
+    let [<Literal>] OPENING_MOVE_YEAR = "2025"
     let [<Literal>] DEST_COMPANY_ID = "1"
     let [<Literal>] ORIG_COMPANY_ID = "1"
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=zzz_fama_bolsa; Username=postgres; Password=HolaJuan1947;"
@@ -13,6 +13,8 @@ module Constants =
 module Helpers =
 
     let exportId (modelName : string) (idOption : 'a option) =
+
+        let modelName = modelName.Replace(".", "_")
 
         match idOption with
         | Some id -> $"__export__.{modelName}_{id}"
@@ -151,3 +153,9 @@ type UtmMedium = UtmMedium with
 
 type ProjectProject = ProjectProject with
     static member exportId idOption = exportId "project_project" idOption
+
+type StockRoute = StockRoute with
+    static member exportId idOption = exportId "stock_route" idOption
+
+type StockRule = StockRule with
+    static member exportId idOption = exportId "stock_rule" idOption

@@ -1281,8 +1281,8 @@ type Service () =
 
         //--------------------------------------------------------------------------------------------------------------
         let header = [
-            "id" ; "date" ; "name" ; "partner_id/id" ; "ref" ; "journal_id/id" ; "line_ids/account_id/id"
-            "line_ids/partner_id/id" ; "line_ids/name" ; "line_ids/debit" ; "line_ids/credit"
+            "id" ; "date" ; "name" ; "partner_id/id" ; "ref" ; "journal_id" ; "line_ids/account_id"
+            "line_ids/partner_id/.id" ; "line_ids/name" ; "line_ids/debit" ; "line_ids/credit"
             "line_ids/date_maturity" ; "line_ids/payment_mode_id/id"
         ]
 
@@ -1321,6 +1321,7 @@ type Service () =
             join res_partner as rp on aml.partner_id = rp.id
             join account_move as am on aml.move_id = am.id
             where aml.company_id = {ORIG_COMPANY_ID}
+            and aml.date < '{OPENING_MOVE_YEAR}-01-01'
             and am.state = 'posted'
             and aml.partner_id in (select partner_id from active_partners)
             and aa.code in (select * from account_list)
@@ -1331,7 +1332,7 @@ type Service () =
             [
                 ""
                 reader.text "account_id"
-                reader.intOrNone "partner_id" |> ResPartner.exportId
+                reader.intOrNone "partner_id" |> orEmptyString
                 reader.textOrNone "ref" |> orEmptyString
                 reader.double "debit" |> formatDecimal
                 reader.double "credit" |> formatDecimal
@@ -1349,6 +1350,7 @@ type Service () =
                     join account_move as am on aml.move_id = am.id
                     join account_account as aa on aml.account_id = aa.id
                     where aml.company_id = {ORIG_COMPANY_ID}
+                    and aml.date < '{OPENING_MOVE_YEAR}-01-01'
                     and am.state = 'posted'
                     group by aa.code, aa.name
                 )""" +
@@ -1413,6 +1415,7 @@ type Service () =
                     join account_account as aa on aml.account_id = aa.id
                     join account_move as am on aml.move_id = am.id
                     where aml.company_id = {ORIG_COMPANY_ID}
+                    and aml.date < '{OPENING_MOVE_YEAR}-01-01'
                     and am.state = 'posted'
                     and aml.full_reconcile_id is null
                     and aml.balance <> 0.0
@@ -1428,6 +1431,7 @@ type Service () =
             join account_account as aa on aml.account_id = aa.id
             join account_move as am on aml.move_id = am.id
             where aml.company_id = {ORIG_COMPANY_ID}
+            and aml.date < '{OPENING_MOVE_YEAR}-01-01'
             and am.state = 'posted'
             and aml.full_reconcile_id is null
             and aml.balance <> 0.0
@@ -1454,7 +1458,7 @@ type Service () =
                 if shouldGenerateRow() then
                     ""
                     reader.text "account_id"
-                    reader.intOrNone "partner_id" |> ResPartner.exportId
+                    reader.intOrNone "partner_id" |> orEmptyString
 
                     match reader.textOrNone "ref" with
                     | Some ref -> ref
