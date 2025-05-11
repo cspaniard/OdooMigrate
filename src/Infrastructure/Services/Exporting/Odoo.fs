@@ -2197,6 +2197,52 @@ type Service () =
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportStockLocationRoute (modelName : string) =
+
+        let header = addStampHeadersTo [
+            "id" ; "name" ; "active" ; "sequence" ; "product_selectable" ; "product_categ_selectable"
+            "warehouse_selectable" ; "packaging_selectable" ; "supplied_wh_id/id" ; "supplier_wh_id/id"
+            "company_id/.id" ; "sale_selectable" ; "warehouse_ids"
+        ]
+
+        let sql = """
+            select slr.*,
+                   STRING_AGG(srw.warehouse_id::text, ',') AS warehouse_ids
+            from stock_location_route as slr
+            left join stock_route_warehouse as srw on slr.id = srw.route_id
+            group by slr.id
+            order by slr.id
+            """
+
+        let getExternalWarehouseIds (warehouseIds : string) =
+            warehouseIds
+            |> split ","
+            |> Array.map (Some >> StockWarehouse.exportId)
+            |> join ","
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> StockRoute.exportId
+                reader.text "name"
+                reader.boolOrNone "active" |> orEmptyString
+                reader.intOrNone "sequence" |> orEmptyString
+                reader.boolOrNone "product_selectable" |> orEmptyString
+                reader.boolOrNone "product_categ_selectable" |> orEmptyString
+                reader.boolOrNone "warehouse_selectable" |> orEmptyString
+                reader.boolOrNone "packaging_selectable" |> orEmptyString
+                reader.intOrNone "supplied_wh_id" |> StockWarehouse.exportId
+                reader.intOrNone "supplier_wh_id" |> StockWarehouse.exportId
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.boolOrNone "sale_selectable" |> orEmptyString
+                reader.stringOrNone "warehouse_ids" |> Option.map getExternalWarehouseIds |> orEmptyString
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
                 yield! readStampFields reader
             ]
 
