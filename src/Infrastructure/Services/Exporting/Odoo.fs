@@ -2071,9 +2071,10 @@ type Service () =
             "id" ; "name" ; "active" ; "company_id/.id" ; "partner_id/id" ; "view_location_id/id"
             "lot_stock_id/id" ; "code" ; "reception_steps" ; "delivery_steps"
             "wh_input_stock_loc_id/id" ; "wh_qc_stock_loc_id/id" ; "wh_output_stock_loc_id/id"
-            "wh_pack_stock_loc_id/id" ; "pick_type_id/id" ; "pack_type_id/id"
+            "wh_pack_stock_loc_id/id" ; "mto_pull_id/id" ; "pick_type_id/id" ; "pack_type_id/id"
             "out_type_id/id" ; "in_type_id/id" ; "int_type_id/id" ; "return_type_id/id"
-            "sequence" ; "buy_to_resupply"
+            "crossdock_route_id/id" ; "reception_route_id/id" ; "delivery_route_id/id"
+            "sequence" ; "buy_to_resupply" ; "buy_pull_id/id"
         ]
 
         let sql = """
@@ -2136,7 +2137,7 @@ type Service () =
                 | Some lot_stock_external_id -> lot_stock_external_id
                 | None -> reader.intOrNone "lot_stock_id" |> StockLocation.exportId
 
-                reader.textOrNone "code" |> orEmptyString
+                reader.text "code"
                 reader.text "reception_steps"
                 reader.text "delivery_steps"
 
@@ -2155,6 +2156,8 @@ type Service () =
                 match reader.textOrNone "pack_stock_loc_external_id" with
                 | Some pack_stock_loc_external_id -> pack_stock_loc_external_id
                 | None -> reader.intOrNone "wh_pack_stock_loc_id" |> StockLocation.exportId
+
+                reader.intOrNone "mto_pull_id" |> StockRule.exportId
 
                 match reader.textOrNone "pick_type_external_id" with
                 | Some pick_type_external_id -> pick_type_external_id
@@ -2180,8 +2183,20 @@ type Service () =
                 | Some return_type_external_id -> return_type_external_id
                 | None -> reader.intOrNone "return_type_id" |> StockPickingType.exportId
 
+                reader.intOrNone "crossdock_route_id" |> StockRoute.exportId
+                reader.intOrNone "reception_route_id" |> StockRoute.exportId
+                reader.intOrNone "delivery_route_id" |> StockRoute.exportId
+
                 reader.int "sequence" |> string
                 reader.bool "buy_to_resupply" |> string
+                reader.intOrNone "buy_pull_id" |> StockRule.exportId
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
                 yield! readStampFields reader
             ]
 
