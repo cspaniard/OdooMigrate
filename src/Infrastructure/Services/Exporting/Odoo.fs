@@ -399,106 +399,113 @@ type Service () =
             (ISqlBroker.getExportData sql (fun reader -> [ reader.text "code" ])).Head.Head
         //--------------------------------------------------------------------------------------------------------------
 
-        //--------------------------------------------------------------------------------------------------------------
-        let defaultAccountReceivableCode = getDefaultAccountCode "property_account_receivable_id"
-        let defaultAccountPayableCode = getDefaultAccountCode "property_account_payable_id"
-        //--------------------------------------------------------------------------------------------------------------
-
         let header = addStampHeadersTo [
-            "id" ; "name" ; "lang" ; "tz" ; "user_id/id" ; "parent_id/id"
-            "vat" ; "website" ; "comment" ; "type" ; "street" ; "street2" ; "zip" ; "city"
-            "state_id/id" ; "country_id/id" ; "email" ; "phone" ; "mobile" ; "is_company"
-            "customer" ; "supplier" ; "alternative_name" ; "comercial" ; "bank_name" ; "not_in_mod347"
-            "sale_journal_id/id" ; "purchase_journal_id/id" ; "aeat_anonymous_cash_customer"
-            "property_account_receivable_id/id" ; "property_account_payable_id/id"
-            "property_payment_term_id/id" ; "customer_payment_mode_id/id" ; "supplier_payment_mode_id/id"
-            "property_product_pricelist/id" ; "property_account_position_id/id"
+            "id" ; "property_account_payable_code" ; "property_account_position_external_id/id"
+            "property_account_receivable_code" ; "property_payment_term_id/id"
+            "property_product_pricelist/id" ; "property_purchase_currency_id/.id"
+            "property_stock_customer/id" ; "property_stock_supplier/id"
+            "property_supplier_payment_term_id/id" ; "customer_payment_mode_id/id"
+            "supplier_payment_mode_id/id" ; "name" ; "company_id/.id" ; "display_name"
+            "date" ; "title" ; "parent_id/id" ; "ref" ; "lang" ; "tz" ; "user_id/id" ; "vat"
+            "website" ; "comment" ; "credit_limit" ; "active" ; "employee" ; "function"
+            "type" ; "street" ; "street2" ; "zip" ; "city" ; "state_id/id" ; "country_id/id"
+            "partner_latitude" ; "partner_longitude" ; "email" ; "phone" ; "mobile"
+            "is_company" ; "industry_id/id" ; "color" ; "partner_share"
+            "commercial_partner_id/id" ; "commercial_company_name" ; "company_name"
+            "email_normalized" ; "message_bounce" ; "signup_token" ; "signup_type"
+            "signup_expiration" ; "team_id/.id" ; "phone_sanitized" ; "debit_limit"
+            "last_time_entries_checked" ; "invoice_warn" ; "invoice_warn_msg" ; "supplier_rank"
+            "customer_rank" ; "picking_warn" ; "picking_warn_msg" ; "sale_warn"
+            "sale_warn_msg" ; "purchase_warn" ; "purchase_warn_msg"
+            "aeat_anonymous_cash_customer" ; "aeat_identification_type"
+            "aeat_identification" ; "comercial" ; "not_in_mod347"
+            "aeat_partner_check_result" ; "aeat_partner_vat" ; "aeat_partner_name"
+            "aeat_data_diff" ; "aeat_last_checked" ; "aeat_partner_type" ; "city_id/id" ; "zip_id/id"
+            "sale_journal/id" ; "purchase_journal/id" ; "customer" ; "supplier" ; "bank_name"
+            "alternative_name"
         ]
 
         let sql = """
             with
-            rel_payable as (
-                select id, company_id,
-                       split_part(res_id, ',', 2)::integer as partner_id,
-                       split_part(value_reference, ',', 2)::integer as account_id
+            rel_property as (
+                select
+                    name as property_name,
+                    split_part(res_id, ',', 2)::integer as property_partner_id,
+                    split_part(value_reference, ',', 1)::varchar as property_model_name,
+                    split_part(value_reference, ',', 2)::integer as property_value_id
                 from ir_property
-                where name = 'property_account_payable_id'
-                and res_id is not null
-            ),
-            rel_receivable as (
-                select id, company_id,
-                       split_part(res_id, ',', 2)::integer as partner_id,
-                       split_part(value_reference, ',', 2)::integer as account_id
-                from ir_property
-                where name = 'property_account_receivable_id'
-                and res_id is not null
-            ),
-            rel_payment_term as (
-                select id, company_id,
-                       split_part(res_id, ',', 2)::integer as partner_id,
-                       split_part(value_reference, ',', 2)::integer as payment_term_id
-                from ir_property
-                where name = 'property_payment_term_id'
-                and res_id is not null
-            ),
-            rel_customer_payment_mode as (
-                select id, company_id,
-                       split_part(res_id, ',', 2)::integer as partner_id,
-                       split_part(value_reference, ',', 2)::integer as payment_mode_id
-                from ir_property
-                where name = 'customer_payment_mode_id'
-                and res_id is not null
-            ),
-            rel_supplier_payment_mode_id as (
-                select id, company_id,
-                       split_part(res_id, ',', 2)::integer as partner_id,
-                       split_part(value_reference, ',', 2)::integer as payment_mode_id
-                from ir_property
-                where name = 'supplier_payment_mode_id'
-                and res_id is not null
-            ),
-            rel_product_pricelist as (
-                select id, company_id,
-                       split_part(res_id, ',', 2)::integer as partner_id,
-                       split_part(value_reference, ',', 2)::integer as product_pricelist
-                from ir_property
-                where name = 'property_product_pricelist'
-                and res_id is not null
-            ),
-            rel_account_position as (
-                select id, company_id,
-                       split_part(res_id, ',', 2)::integer as partner_id,
-                       split_part(value_reference, ',', 2)::integer as account_position
-                from ir_property
-                where name = 'property_account_position_id'
-                and res_id is not null
+                where res_id like 'res.partner,%'
             )
-            select rp.id, rp.name, rp.lang, rp.tz, rp.user_id, rp.parent_id,
-                   rp.vat, rp.website, rp.comment, rp.type, rp.street, rp.street2, rp.zip, rp.city,
-                   rcs.code as state_id, rp.country_id, rp.email, rp.phone, rp.mobile, rp.is_company,
-                   rp.not_in_mod347,
-                   rp.sale_journal, rp.purchase_journal, rp.aeat_anonymous_cash_customer,
-                   rp.customer, rp.supplier, rp.alternative_name, rp.comercial, rp.bank_name,
-                   acc_rec.code as property_account_receivable_id, acc.code as property_account_payable_id,
-                   apt.id as account_payment_term_id, rcpm.payment_mode_id as customer_payment_mode_id,
-                   rspm.payment_mode_id as supplier_payment_mode_id,
-                   rppl.product_pricelist as property_product_pricelist,
-                   'account.' || imd.name AS fiscal_position_external_id,
-                   rp.create_uid, rp.create_date, rp.write_uid, rp.write_date
+            select
+                papay.property_value_id as property_account_payable_id,
+                aapay.code as property_account_payable_code,
+                papos.property_value_id as property_account_position_id,
+                'account.' || afpextid.name as property_account_position_external_id,
+                parec.property_value_id as property_account_receivable_id,
+                aarec.code as property_account_receivable_code,
+                ppterm.property_value_id as property_payment_term_id,
+                ppplist.property_value_id as property_product_pricelist,
+                ppcurr.property_value_id as property_purchase_currency_id,
+                pscust.property_value_id as property_stock_customer,
+                pssupp.property_value_id as property_stock_supplier,
+                pspayterm.property_value_id as property_supplier_payment_term_id,
+                cpmode.property_value_id as customer_payment_mode_id,
+                spmode.property_value_id as supplier_payment_mode_id,
+                rcstate.module || '.' || rcstate.name as state_external_id,
+                rcstate.module || '.' || rcountry.name as country_external_id,
+                rcstate.module || '.' || rpindustry.name as industry_external_id,
+                rcstate.module || '.' || rcity.name as city_external_id,
+                rcstate.module || '.' || rczip.name as zip_external_id,
+                rp.*
             from res_partner as rp
-            left join rel_payable as pay on rp.id = pay.partner_id
-            left join rel_receivable as rec on rp.id = rec.partner_id
-            left join account_account as acc on pay.account_id = acc.id
-            left join account_account as acc_rec on rec.account_id = acc_rec.id
-            left join res_country_state as rcs on rp.state_id = rcs.id
-            left join rel_payment_term as rp_term on rp.id = rp_term.partner_id
-            left join account_payment_term as apt on rp_term.payment_term_id = apt.id
-            left join rel_customer_payment_mode as rcpm on rp.id = rcpm.partner_id
-            left join rel_supplier_payment_mode_id as rspm on rp.id = rspm.partner_id
-            left join rel_product_pricelist as rppl on rp.id = rppl.partner_id
-            left join rel_account_position as rap on rp.id = rap.partner_id
-            left join account_fiscal_position as afp on rap.account_position = afp.id
-            left join ir_model_data imd ON imd.model = 'account.fiscal.position' AND imd.res_id = afp.id
+            left join rel_property as papay
+                on rp.id = papay.property_partner_id
+                and papay.property_name = 'property_account_payable_id'
+            left join rel_property as papos
+                on rp.id = papos.property_partner_id
+                and papos.property_name = 'property_account_position_id'
+            left join rel_property as parec
+                on rp.id = parec.property_partner_id
+                and parec.property_name = 'property_account_receivable_id'
+            left join rel_property as ppterm
+                on rp.id = ppterm.property_partner_id
+                and ppterm.property_name = 'property_payment_term_id'
+            left join rel_property as ppplist
+                on rp.id = ppplist.property_partner_id
+                and ppplist.property_name = 'property_product_pricelist'
+            left join rel_property as ppcurr
+                on rp.id = ppcurr.property_partner_id
+                and ppcurr.property_name = 'property_purchase_currency_id'
+            left join rel_property as pscust
+                on rp.id = pscust.property_partner_id
+                and pscust.property_name = 'property_stock_customer'
+            left join rel_property as pssupp
+                on rp.id = pssupp.property_partner_id
+                and pssupp.property_name = 'property_stock_supplier'
+            left join rel_property as pspayterm
+                on rp.id = pspayterm.property_partner_id
+                and pspayterm.property_name = 'property_supplier_payment_term_id'
+            left join rel_property as cpmode
+                on rp.id = cpmode.property_partner_id
+                and cpmode.property_name = 'customer_payment_mode_id'
+            left join rel_property as spmode
+                on rp.id = spmode.property_partner_id
+                and spmode.property_name = 'supplier_payment_mode_id'
+            left join ir_model_data afpextid
+                ON afpextid.model = 'account.fiscal.position'
+                and afpextid.res_id = papos.property_value_id
+            left join account_account as aapay on papay.property_value_id = aapay.id
+            left join account_account as aarec on parec.property_value_id = aarec.id
+            left join ir_model_data rcstate on rcstate.model = 'res.country.state'
+                and rp.state_id = rcstate.res_id
+            left join ir_model_data rcountry on rcountry.model = 'res.country'
+                and rp.country_id = rcountry.res_id
+            left join ir_model_data rpindustry on rpindustry.model = 'res.partner.industry'
+                and rp.country_id = rpindustry.res_id
+            left join ir_model_data rcity on rcity.model = 'res.city'
+                and rp.country_id = rcity.res_id
+            left join ir_model_data rczip on rczip.model = 'res.city.zip'
+                and rp.country_id = rczip.res_id
             where rp.customer is not null
             and rp.active = true
             or rp.name ilike 'Deysanka SL'
@@ -508,53 +515,94 @@ type Service () =
         let readerFun (reader : RowReader) =
             [
                 reader.intOrNone "id" |> ResPartner.exportId
-                reader.text "name"
+                reader.textOrNone "property_account_payable_code" |> orEmptyString
+                reader.textOrNone "property_account_position_external_id" |> orEmptyString
+                reader.textOrNone "property_account_receivable_code" |> orEmptyString
+                reader.intOrNone "property_payment_term_id" |> AccountPaymentTerm.exportId
+                reader.intOrNone "property_product_pricelist" |> ProductPriceList.exportId
+                reader.intOrNone "property_purchase_currency_id" |> orEmptyString
+                reader.intOrNone "property_stock_customer" |> StockLocation.exportId
+                reader.intOrNone "property_stock_supplier" |> StockLocation.exportId
+                reader.intOrNone "property_supplier_payment_term_id" |> AccountPaymentTerm.exportId
+                reader.intOrNone "customer_payment_mode_id" |> AccountPaymentMode.exportId
+                reader.intOrNone "supplier_payment_mode_id" |> AccountPaymentMode.exportId
+                reader.text "name" |> Some |> orEmptyString
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.textOrNone "display_name" |> orEmptyString
+                reader.dateOnlyOrNone "date" |> orEmptyString
+                reader.intOrNone "title" |> orEmptyString
+                reader.intOrNone "parent_id" |> ResPartner.exportId
+                reader.textOrNone "ref" |> orEmptyString
                 reader.textOrNone "lang" |> orEmptyString
                 reader.textOrNone "tz" |> orEmptyString
                 reader.intOrNone "user_id" |> ResUsers.exportId
-                reader.intOrNone "parent_id" |> ResPartner.exportId
 
                 reader.textOrNone "vat" |> orEmptyString
                 reader.textOrNone "website" |> orEmptyString
                 reader.textOrNone "comment" |> orEmptyString
-                reader.text "type"
+                reader.doubleOrNone "credit_limit" |> formatDecimalOption
+                reader.bool "active" |> string
+                reader.boolOrNone "employee" |> orEmptyString
+                reader.textOrNone "function" |> orEmptyString
+                reader.textOrNone "type" |> orEmptyString
                 reader.textOrNone "street" |> orEmptyString
                 reader.textOrNone "street2" |> orEmptyString
                 reader.textOrNone "zip" |> orEmptyString
                 reader.textOrNone "city" |> orEmptyString
-
-                match reader.textOrNone "state_id" with
-                | Some state_id -> $"base.state_es_{state_id}".ToLower()
-                | None -> ""
-                "ES"  // reader.intOrNone "country_id" |> withDefaultValue
+                reader.textOrNone "state_external_id" |> orEmptyString
+                reader.textOrNone "country_external_id" |> orEmptyString
+                reader.doubleOrNone "partner_latitude" |> formatDecimalOption
+                reader.doubleOrNone "partner_longitude" |> formatDecimalOption
                 reader.textOrNone "email" |> orEmptyString
                 reader.textOrNone "phone" |> orEmptyString
                 reader.textOrNone "mobile" |> orEmptyString
                 reader.bool "is_company" |> string
-
-                reader.bool "customer" |> string
-                reader.bool "supplier" |> string
-                reader.textOrNone "alternative_name" |> orEmptyString
+                reader.textOrNone "industry_external_id" |> orEmptyString
+                reader.intOrNone "color" |> orEmptyString
+                reader.bool "partner_share" |> string
+                reader.intOrNone "commercial_partner_id" |> ResPartner.exportId
+                reader.textOrNone "commercial_company_name" |> orEmptyString
+                reader.textOrNone "company_name" |> orEmptyString
+                reader.textOrNone "email_normalized" |> orEmptyString
+                reader.intOrNone "message_bounce" |> orEmptyString
+                reader.textOrNone "signup_token" |> orEmptyString
+                reader.textOrNone "signup_type" |> orEmptyString
+                reader.dateTimeOrNone "signup_expiration" |> dateTimeOrEmptyString
+                reader.intOrNone "team_id" |> orEmptyString
+                reader.textOrNone "phone_sanitized" |> orEmptyString
+                reader.doubleOrNone "debit_limit" |> formatDecimalOption
+                reader.dateTimeOrNone "last_time_entries_checked" |> dateTimeOrEmptyString
+                reader.textOrNone "invoice_warn" |> orEmptyString
+                reader.textOrNone "invoice_warn_msg" |> orEmptyString
+                reader.intOrNone "supplier_rank" |> orEmptyString
+                reader.intOrNone "customer_rank" |> orEmptyString
+                reader.textOrNone "picking_warn" |> orEmptyString
+                reader.textOrNone "picking_warn_msg" |> orEmptyString
+                reader.textOrNone "sale_warn" |> orEmptyString
+                reader.textOrNone "sale_warn_msg" |> orEmptyString
+                reader.textOrNone "purchase_warn" |> orEmptyString
+                reader.textOrNone "purchase_warn_msg" |> orEmptyString
+                reader.boolOrNone "aeat_anonymous_cash_customer" |> orEmptyString
+                reader.textOrNone "aeat_identification_type" |> orEmptyString
+                reader.textOrNone "aeat_identification" |> orEmptyString
                 reader.textOrNone "comercial" |> orEmptyString
-                reader.textOrNone "bank_name" |> orEmptyString
-
                 reader.boolOrNone "not_in_mod347" |> orEmptyString
-
+                reader.textOrNone "aeat_partner_check_result" |> orEmptyString
+                reader.textOrNone "aeat_partner_vat" |> orEmptyString
+                reader.textOrNone "aeat_partner_name" |> orEmptyString
+                reader.boolOrNone "aeat_data_diff" |> orEmptyString
+                reader.dateTimeOrNone "aeat_last_checked" |> dateTimeOrEmptyString
+                reader.textOrNone "aeat_partner_type" |> orEmptyString
+                reader.textOrNone "city_external_id" |> orEmptyString
+                reader.textOrNone "zip_external_id" |> orEmptyString
                 reader.intOrNone "sale_journal" |> AccountJournal.exportId
                 reader.intOrNone "purchase_journal" |> AccountJournal.exportId
-                reader.boolOrNone "aeat_anonymous_cash_customer" |> orEmptyString
-
-                reader.textOrNone "property_account_receivable_id" |> Option.defaultValue defaultAccountReceivableCode
-                reader.textOrNone "property_account_payable_id" |> Option.defaultValue defaultAccountPayableCode
-
-                reader.intOrNone "account_payment_term_id" |> AccountPaymentTerm.exportId
-                reader.intOrNone "customer_payment_mode_id" |> AccountPaymentMode.exportId
-                reader.intOrNone "supplier_payment_mode_id" |> AccountPaymentMode.exportId
-                reader.intOrNone "property_product_pricelist" |> ProductPriceList.exportId
-                reader.stringOrNone "fiscal_position_external_id" |> orEmptyString
+                reader.boolOrNone "customer" |> orEmptyString
+                reader.boolOrNone "supplier" |> orEmptyString
+                reader.textOrNone "bank_name" |> orEmptyString
+                reader.textOrNone "alternative_name" |> orEmptyString
                 yield! readStampFields reader
             ]
-
         header::ISqlBroker.getExportData sql readerFun
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
