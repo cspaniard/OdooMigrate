@@ -2243,6 +2243,74 @@ type Service () =
         |> IExcelBroker.exportFile $"{modelName}.xlsx"
     //------------------------------------------------------------------------------------------------------------------
 
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportStockRule (modelName : string) =
+        let header = addStampHeadersTo [
+            "id" ; "name" ; "active" ; "group_propagation_option" ; "group_id/id" ; "action" ; "sequence"
+            "company_id/.id" ; "location_dest_id/id" ; "location_src_id/id" ; "route_id/id" ; "procure_method"
+            "route_sequence" ; "picking_type_id/id" ; "delay" ; "partner_address_id/id" ; "propagate_cancel"
+            "propagate_carrier" ; "warehouse_id/id" ; "propagate_warehouse_id/id" ; "auto"
+        ]
+
+        let sql = """
+			with
+            rel_location as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.location'
+                and module not like '\_\_%'
+			),
+			rel_picking_type as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'stock.picking.type'
+                and module not like '\_\_%'
+			)
+			select location_dest.external_id as location_dest_external_id,
+			       location_src.external_id as location_src_external_id,
+			       picking_type.external_id as picking_type_external_id,
+			       sr.*
+			from stock_rule as sr
+			left join rel_location as location_dest on sr.location_id = location_dest.id
+			left join rel_location as location_src on sr.location_src_id = location_src.id
+			left join rel_picking_type as picking_type on sr.picking_type_id = picking_type.id
+            """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> StockRule.exportId
+                reader.text "name"
+                reader.boolOrNone "active" |> orEmptyString
+                reader.textOrNone "group_propagation_option" |> orEmptyString
+                reader.intOrNone "group_id" |> ProcurementGroup.exportId
+                reader.text "action"
+                reader.intOrNone "sequence" |> orEmptyString
+                reader.intOrNone "company_id" |> orEmptyString
+
+                match reader.textOrNone "location_dest_external_id" with
+                | Some location_dest_external_id -> location_dest_external_id
+                | None -> reader.intOrNone "location_id" |> StockLocation.exportId
+
+                match reader.textOrNone "location_src_external_id" with
+                | Some location_src_external_id -> location_src_external_id
+                | None -> reader.intOrNone "location_src_id" |> StockLocation.exportId
+
+                reader.intOrNone "route_id" |> StockRoute.exportId
+                reader.text "procure_method"
+                reader.intOrNone "route_sequence" |> orEmptyString
+
+                match reader.textOrNone "picking_type_external_id" with
+                | Some picking_type_external_id -> picking_type_external_id
+                | None -> reader.intOrNone "picking_type_id" |> StockPickingType.exportId
+
+                reader.intOrNone "delay" |> orEmptyString
+                reader.intOrNone "partner_address_id" |> ResPartner.exportId
+                reader.boolOrNone "propagate_cancel" |> orEmptyString
+                reader.boolOrNone "propagate_carrier" |> orEmptyString
+                reader.intOrNone "warehouse_id" |> StockWarehouse.exportId
+                reader.intOrNone "propagate_warehouse_id" |> StockWarehouse.exportId
+                reader.text "auto"
+
                 yield! readStampFields reader
             ]
 
