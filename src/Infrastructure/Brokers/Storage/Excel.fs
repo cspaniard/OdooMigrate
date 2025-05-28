@@ -24,6 +24,12 @@ type Broker () =
 
         worksheet.Cell("A1").InsertData(data) |> ignore
 
+        Broker.saveFile fileName workbook
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member saveFile (fileName : string) (workbook : XLWorkbook) =
+
         Path.Combine(Broker.OutputPath, fileName)
         |> workbook.SaveAs
     //------------------------------------------------------------------------------------------------------------------

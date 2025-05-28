@@ -11,7 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="ClosedXML" Version="0.97.0" />
+      <PackageReference Include="ClosedXML" Version="0.105.0" />
       <PackageReference Include="Motsoft.Util" Version="1.9.0" />
       <PackageReference Include="Npgsql.FSharp" Version="5.4.0" />
     </ItemGroup>
@@ -21,6 +21,15 @@
       <Compile Include="Brokers\Database\SqlDI.fs" />
       <Compile Include="Brokers\Storage\Excel.fs" />
       <Compile Include="Brokers\Storage\StorageDI.fs" />
+      <Compile Include="Services\Exporting\ExportHelpers.fs" />
+      <Compile Include="Services\Exporting\ExportAccount.fs" />
+      <Compile Include="Services\Exporting\ExportRes.fs" />
+      <Compile Include="Services\Exporting\ExportIr.fs" />
+      <Compile Include="Services\Exporting\ExportProduct.fs" />
+      <Compile Include="Services\Exporting\ExportStock.fs" />
+      <Compile Include="Services\Exporting\ExportSale.fs" />
+      <Compile Include="Services\Exporting\ExportPurchase.fs" />
+      <Compile Include="Services\Exporting\ExportTableNames.fs" />
       <Compile Include="Services\Exporting\Odoo.fs" />
       <Compile Include="Services\Exporting\ExportingDI.fs" />
     </ItemGroup>

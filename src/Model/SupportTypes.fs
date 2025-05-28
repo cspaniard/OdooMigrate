@@ -6,7 +6,8 @@ module Constants =
     let [<Literal>] ORIG_COMPANY_ID = "1"
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=zzz_fama_bolsa; Username=postgres; Password=HolaJuan1947;"
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=gestion1; Username=postgres; Password=HolaJuan1947;"
-    let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_deysanka_15; Username=postgres; Password=HolaJuan1947;"
+    let [<Literal>] CONNECTION_STRING_15 = "Host=localhost; Database=zzz_deysanka_15; Username=postgres; Password=HolaJuan1947;"
+    let [<Literal>] CONNECTION_STRING_17 = "Host=localhost; Database=t5; Username=postgres; Password=HolaJuan1947;"
     // let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_Nueva_Dieta_Facil; Username=dsanroma; Password=pepe;"
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=Nueva_Dieta_Facil; Username=dsanroma; Password=HolaJuan1947;"
 
@@ -130,6 +131,9 @@ type StockMoveLine = StockMoveLine with
 type StockWarehouse = StockWarehouse with
     static member exportId idOption = exportId "stock_warehouse" idOption
 
+type StockQuant = StockQuant with
+    static member exportId idOption = exportId "stock_quant" idOption
+
 type ProductProduct = ProductProduct with
     static member exportId idOption = exportId "product_product" idOption
 
@@ -138,6 +142,12 @@ type SaleOrder = SaleOrder with
 
 type SaleOrderLine = SaleOrderLine with
     static member exportId idOption = exportId "sale_order_line" idOption
+
+type PurchaseOrder = PurchaseOrder with
+    static member exportId idOption = exportId "purchase_order" idOption
+
+type PurchaseOrderLine = PurchaseOrderLine with
+    static member exportId idOption = exportId "purchase_order_line" idOption
 
 type StockProductionLot = StockProductionLot with
     static member exportId idOption = exportId "stock_production_lot" idOption
@@ -159,3 +169,12 @@ type StockRoute = StockRoute with
 
 type StockRule = StockRule with
     static member exportId idOption = exportId "stock_rule" idOption
+
+type StockPutawayRule = StockPutawayRule with
+    static member exportId idOption = exportId "stock_putaway_rule" idOption
+
+type StockValuationLayer = StockValuationLayer with
+    static member exportId idOption = exportId "stock_valuation_layer" idOption
+
+type UomUom = UomUom with
+    static member exportId idOption = exportId "uom_uom" idOption
