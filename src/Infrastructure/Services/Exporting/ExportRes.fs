@@ -161,8 +161,16 @@ type ExportRes () =
                     split_part(value_reference, ',', 2)::integer as property_value_id
                 from ir_property
                 where res_id like 'res.partner,%'
+            ),
+            rel_account_payment_term as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'account.payment.term'
+                and module not like '\_\_%'
             )
             select
+                rapt.external_id as payment_term_external_id,
+                rsapt.external_id as supplier_payment_term_external_id,
                 papay.property_value_id as property_account_payable_id,
                 aapay.code as property_account_payable_code,
                 papos.property_value_id as property_account_position_id,
@@ -232,11 +240,13 @@ type ExportRes () =
                 and rp.country_id = rcity.res_id
             left join ir_model_data rczip on rczip.model = 'res.city.zip'
                 and rp.country_id = rczip.res_id
+            left join rel_account_payment_term as rapt on ppterm.property_value_id = rapt.id
+            left join rel_account_payment_term as rsapt on pspayterm.property_value_id = rsapt.id
             where rp.customer is not null
             and rp.active = true
             or rp.name ilike 'Deysanka SL'
             order by rp.id
-            """
+        """
 
         let readerFun (reader : RowReader) =
             [
@@ -244,12 +254,20 @@ type ExportRes () =
                 reader.textOrNone "property_account_payable_code" |> orEmptyString
                 reader.textOrNone "property_account_position_external_id" |> orEmptyString
                 reader.textOrNone "property_account_receivable_code" |> orEmptyString
-                reader.intOrNone "property_payment_term_id" |> AccountPaymentTerm.exportId
+
+                match reader.textOrNone "payment_term_external_id" with
+                | Some value -> value
+                | None -> reader.intOrNone "property_payment_term_id" |> AccountPaymentTerm.exportId
+
                 reader.intOrNone "property_product_pricelist" |> ProductPriceList.exportId
                 reader.intOrNone "property_purchase_currency_id" |> orEmptyString
                 reader.intOrNone "property_stock_customer" |> StockLocation.exportId
                 reader.intOrNone "property_stock_supplier" |> StockLocation.exportId
-                reader.intOrNone "property_supplier_payment_term_id" |> AccountPaymentTerm.exportId
+
+                match reader.textOrNone "supplier_payment_term_external_id" with
+                | Some value -> value
+                | None -> reader.intOrNone "property_supplier_payment_term_id" |> AccountPaymentTerm.exportId
+
                 reader.intOrNone "customer_payment_mode_id" |> AccountPaymentMode.exportId
                 reader.intOrNone "supplier_payment_mode_id" |> AccountPaymentMode.exportId
                 reader.text "name" |> Some |> orEmptyString

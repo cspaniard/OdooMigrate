@@ -73,14 +73,27 @@ type ExportAccount () =
             let header = addStampHeadersTo [ "id" ; "name" ; "note" ; "sequence" ]
 
             let sql = """
-                select *
-                from account_payment_term
+                with
+                rel_account_payment_term as (
+                    select module, model, res_id as id, module || '.' || name as external_id
+                    from ir_model_data
+                    where model = 'account.payment.term'
+                    and module not like '\_\_%'
+                )
+                select
+                    rapt.external_id as payment_term_external_id,
+                    apt.*
+                from account_payment_term as apt
+                left join rel_account_payment_term as rapt on apt.id = rapt.id
                 order by create_date
-                """
+            """
 
             let readerFun (reader : RowReader) =
                 [
-                    reader.intOrNone "id" |> AccountPaymentTerm.exportId
+                    match reader.textOrNone "payment_term_external_id" with
+                    | Some value -> value
+                    | None -> reader.int "id" |> Some |> AccountPaymentTerm.exportId
+
                     reader.text "name"
                     $"""<p>{reader.textOrNone "note" |> Option.defaultValue (reader.text "name")}</p>"""
                     reader.int "sequence" |> string
@@ -99,10 +112,20 @@ type ExportAccount () =
             ]
 
             let sql = """
-                select *
-                from account_payment_term_line
+                with
+                rel_account_payment_term as (
+                    select module, model, res_id as id, module || '.' || name as external_id
+                    from ir_model_data
+                    where model = 'account.payment.term'
+                    and module not like '\_\_%'
+                )
+                select
+                    rapt.external_id as payment_term_external_id,
+                    aptl.*
+                from account_payment_term_line aptl
+                left join rel_account_payment_term as rapt on aptl.payment_id = rapt.id
                 order by create_date
-                """
+            """
 
             let delayTypeMap = Map.ofList [
                 "day_after_invoice_date", "days_after"
@@ -112,7 +135,10 @@ type ExportAccount () =
             let readerFun (reader : RowReader) =
                 [
                     reader.int "id" |> Some |> AccountPaymentTermLine.exportId
-                    reader.intOrNone "payment_id" |> AccountPaymentTerm.exportId
+
+                    match reader.textOrNone "payment_term_external_id" with
+                    | Some value -> value
+                    | None -> reader.int "payment_id" |> Some |> AccountPaymentTerm.exportId
 
                     match reader.text "value" with
                     | "balance" -> "percent"

@@ -31,15 +31,24 @@ type ExportSale () =
                 select module, model, res_id as id, 'account.' || name as external_id
                 from ir_model_data
                 where model = 'account.fiscal.position'
+            ),
+            rel_account_payment_term as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'account.payment.term'
+                and module not like '\_\_%'
             )
-            select rfp.external_id as fiscal_position_external_id,
-                   rai.external_id as incoterm_external_id,
-                   so.*
+            select
+                rfp.external_id as fiscal_position_external_id,
+                rai.external_id as incoterm_external_id,
+                rapt.external_id as payment_term_external_id,
+                so.*
             from sale_order as so
             left join rel_fiscal_position as rfp on so.fiscal_position_id = rfp.id
             left join rel_account_incoterms as rai on so.incoterm = rai.id
+            left join rel_account_payment_term as rapt on so.payment_term_id = rapt.id
             order by so.create_date
-            """
+        """
 
         let readerFun (reader : RowReader) =
             [
@@ -64,7 +73,11 @@ type ExportSale () =
                 reader.decimalOrNone "amount_untaxed" |> orEmptyString
                 reader.decimalOrNone "amount_tax" |> orEmptyString
                 reader.decimalOrNone "amount_total" |> orEmptyString
-                reader.intOrNone "payment_term_id" |> AccountPaymentTerm.exportId
+
+                match reader.textOrNone "payment_term_external_id" with
+                | Some value -> value
+                | None -> reader.intOrNone "payment_term_id" |> AccountPaymentTerm.exportId
+
                 reader.textOrNone "fiscal_position_external_id" |> orEmptyString
                 reader.int "company_id" |> string
                 reader.intOrNone "team_id" |> orEmptyString
