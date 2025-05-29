@@ -47,8 +47,8 @@ let exportList =
         ("stock_putaway_rule", IStockExportService.exportPutawayRule)
         ("stock_wh_resupply_table", IStockExportService.exportWhResupplyTable)
         // -------------------------------------------------------------------------------------------
-        ("stock_move", IStockExportService.exportMove)              // Pendiente
-        // ("stock_move_line", IStockExportService.exportMoveLine)     // Pendiente
+        ("stock_move", IStockExportService.exportMove)
+        ("stock_move_line", IStockExportService.exportMoveLine)
 
         ("procurement_group", IOdooExportService.exportProcurementGroup)
 

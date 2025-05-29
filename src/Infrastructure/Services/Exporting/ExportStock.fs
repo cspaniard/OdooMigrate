@@ -442,7 +442,7 @@ type ExportStock () =
             left join rel_stock_location as rsl on sp.location_id = rsl.id
             left join rel_stock_location as rsld on sp.location_dest_id = rsld.id
             left join rel_picking_type as rpt on sp.picking_type_id = rpt.id
-            order by sp.create_date
+            order by sp.id
             """
 
         let readerFun (reader : RowReader) =
@@ -536,7 +536,7 @@ type ExportStock () =
             left join rel_stock_location as rsl on sm.location_id = rsl.id
             left join rel_stock_location as rsld on sm.location_dest_id = rsld.id
             left join rel_picking_type as rspt on sm.picking_type_id = rspt.id
-            order by sm.create_date
+            order by sm.id
         """
 
         let readerFun (reader : RowReader) =
@@ -608,10 +608,11 @@ type ExportStock () =
     //------------------------------------------------------------------------------------------------------------------
     static member exportMoveLine (modelName : string) =
 
-        failwith "No está terminado."
-
         let header = addStampHeadersTo [
-            "id" ;
+            "id" ; "picking_id/id" ; "move_id/id" ; "company_id/.id" ; "product_id/id" ; "product_uom_id/id"
+            "product_qty" ; "product_uom_qty" ; "qty_done" ; "package_id/id" ; "package_level_id/id"
+            "lot_id/id" ; "lot_name" ; "result_package_id/id" ; "date" ; "owner_id/id" ; "location_id/id"
+            "location_dest_id/id" ; "state" ; "reference" ; "description_picking" ; "expiration_date"
         ]
 
         let sql = """
@@ -621,18 +622,60 @@ type ExportStock () =
                 from ir_model_data
                 where model = 'stock.location'
                 and module not like '\_\_%'
+            ),
+			rel_uom_uom as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'uom.uom'
+                and module not like '\_\_%'
             )
-            select rsl.external_id as location_external_id,
-                   rsld.external_id as location_dest_external_id,
-                   sm.*
-            from stock_move as sm
-            left join rel_stock_location as rsl on sm.location_id = rsl.id
-            left join rel_stock_location as rsld on sm.location_dest_id = rsld.id
-            order by sm.create_date
-            """
+            select
+                ruom.external_id as uom_external_id,
+                rsl.external_id as location_external_id,
+                rsld.external_id as location_dest_external_id,
+                sml.*
+            from stock_move_line as sml
+            left join rel_stock_location as rsl on sml.location_id = rsl.id
+            left join rel_stock_location as rsld on sml.location_dest_id = rsld.id
+            left join rel_uom_uom as ruom on sml.product_uom_id = ruom.id
+            order by sml.id
+        """
 
         let readerFun (reader : RowReader) =
             [
+                reader.intOrNone "id" |> StockMoveLine.exportId
+                reader.intOrNone "picking_id" |> StockPicking.exportId
+                reader.intOrNone "move_id" |> StockMove.exportId
+                reader.int "company_id" |> string
+                reader.intOrNone "product_id" |> ProductProduct.exportId
+
+                match reader.textOrNone "uom_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "product_uom" |> Some |> UomUom.exportId
+
+                reader.doubleOrNone "product_qty" |> formatDecimalOption
+                reader.double "product_uom_qty" |> Some |> formatDecimalOption
+                reader.doubleOrNone "qty_done" |> formatDecimalOption
+                ""               // package_id
+                ""               // package_level_id
+                reader.intOrNone "lot_id" |> StockProductionLot.exportId
+                reader.textOrNone "lot_name" |> orEmptyString
+                ""               // result_package_id
+                reader.dateTime "date" |> Some |> dateTimeOrEmptyString
+                reader.intOrNone "owner_id" |> ResPartner.exportId
+
+                match reader.textOrNone "location_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "location_id" |> Some |> StockLocation.exportId
+
+                match reader.textOrNone "location_dest_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.int "location_dest_id" |> Some |> StockLocation.exportId
+
+                reader.textOrNone "state" |> orEmptyString
+                reader.textOrNone "reference" |> orEmptyString
+                reader.textOrNone "description_picking" |> orEmptyString
+                reader.dateTimeOrNone "expiration_date" |> dateTimeOrEmptyString
                 yield! readStampFields reader
             ]
 
