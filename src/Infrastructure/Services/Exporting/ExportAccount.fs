@@ -668,7 +668,315 @@ type ExportAccount () =
     //------------------------------------------------------------------------------------------------------------------
 
     //------------------------------------------------------------------------------------------------------------------
+    static member exportFullReconcile (modelName : string) =
+
+        let header = addStampHeadersTo [
+            "id" ; "name" ; "exchange_move_id"
+        ]
+
+        let sql = """
+            select
+                afr.*
+            from account_full_reconcile as afr
+            order by id
+        """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> AccountFullReconcile.exportId
+                reader.text "name"
+                reader.intOrNone "exchange_move_id" |> AccountMove.exportId
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportPartialReconcile (modelName : string) =
+
+        let header = addStampHeadersTo [
+            "id" ; "debit_move_id/id" ; "credit_move_id/id" ; "full_reconcile_id/id" ; "debit_currency_id/id" ;
+            "credit_currency_id/id" ; "amount" ; "debit_amount_currency" ; "credit_amount_currency" ;
+            "company_id/.id" ; "max_date"
+        ]
+
+        let sql = """
+            with
+			rel_res_currency as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'res.currency'
+                and module not like '\_\_%'
+            )
+            select
+                rrc_debit.external_id as debit_currency_external_id,
+                rrc_credit.external_id as credit_currency_external_id,
+                apr.*
+            from account_partial_reconcile as apr
+            join rel_res_currency as rrc_debit on apr.debit_currency_id = rrc_debit.id
+            join rel_res_currency as rrc_credit on apr.credit_currency_id = rrc_credit.id
+            order by id
+        """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.int "id" |> Some |> AccountPartialReconcile.exportId
+                reader.int "debit_move_id" |> Some |> AccountMoveLine.exportId
+                reader.int "credit_move_id" |> Some |> AccountMoveLine.exportId
+                reader.intOrNone "full_reconcile_id" |> AccountFullReconcile.exportId
+                reader.text "debit_currency_external_id"
+                reader.text "credit_currency_external_id"
+                reader.doubleOrNone "amount" |> formatDecimalOption
+                reader.doubleOrNone "debit_amount_currency" |> formatDecimalOption
+                reader.doubleOrNone "credit_amount_currency" |> formatDecimalOption
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.dateOnlyOrNone "max_date" |> dateOrEmptyString
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportReconcileModel (modelName : string) =
+
+        let header = addStampHeadersTo [
+            "id" ; "message_main_attachment_id/id" ; "active" ; "name" ; "sequence" ; "company_id/.id"
+            "rule_type" ; "auto_reconcile" ; "to_check" ; "matching_order" ; "match_text_location_label"
+            "match_text_location_note" ; "match_text_location_reference" ; "match_nature" ; "match_amount"
+            "match_amount_min" ; "match_amount_max" ; "match_label" ; "match_label_param" ; "match_note"
+            "match_note_param" ; "match_transaction_type" ; "match_transaction_type_param"
+            "match_same_currency" ; "allow_payment_tolerance" ; "payment_tolerance_param"
+            "payment_tolerance_type" ; "match_partner" ; "past_months_limit" ; "decimal_separator"
+        ]
+
+        let sql = """
+            select
+                arm.*
+            from account_reconcile_model as arm
+            order by id
+        """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> AccountReconcileModel.exportId
+                ""                // message_main_attachment_id
+                reader.boolOrNone "active" |> orEmptyString
+                reader.text "name"
+                reader.int "sequence" |> string
+                reader.int "company_id" |> string
+                reader.text "rule_type"
+                reader.boolOrNone "auto_reconcile" |> orEmptyString
+                reader.boolOrNone "to_check" |> orEmptyString
+                reader.text "matching_order"
+                reader.boolOrNone "match_text_location_label" |> orEmptyString
+                reader.boolOrNone "match_text_location_note" |> orEmptyString
+                reader.boolOrNone "match_text_location_reference" |> orEmptyString
+                reader.text "match_nature"
+                reader.textOrNone "match_amount" |> orEmptyString
+                reader.doubleOrNone "match_amount_min" |> formatDecimalOption
+                reader.doubleOrNone "match_amount_max" |> formatDecimalOption
+                reader.textOrNone "match_label" |> orEmptyString
+                reader.textOrNone "match_label_param" |> orEmptyString
+                reader.textOrNone "match_note" |> orEmptyString
+                reader.textOrNone "match_note_param" |> orEmptyString
+                reader.textOrNone "match_transaction_type" |> orEmptyString
+                reader.textOrNone "match_transaction_type_param" |> orEmptyString
+                reader.boolOrNone "match_same_currency" |> orEmptyString
+                reader.boolOrNone "allow_payment_tolerance" |> orEmptyString
+                reader.doubleOrNone "payment_tolerance_param" |> formatDecimalOption
+                reader.text "payment_tolerance_type"
+                reader.boolOrNone "match_partner" |> orEmptyString
+                reader.intOrNone "past_months_limit" |> orEmptyString
+                reader.textOrNone "decimal_separator" |> orEmptyString
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportReconcileModelLine (modelName : string) =
+
+        let header = addStampHeadersTo [
+            "id" ; "model_id/id" ; "company_id/.id" ; "sequence" ; "account_id/id" ; "journal_id/id" ; "label"
+            "amount_type" ; "force_tax_included" ; "amount" ; "amount_string" ; "analytic_account_id/id"
+        ]
+
+        let sql = """
+            select
+                arml.*
+            from account_reconcile_model_line as arml
+            order by id
+        """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> AccountReconcileModelLine.exportId
+                reader.intOrNone "model_id" |> AccountReconcileModel.exportId
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.int "sequence" |> string
+                reader.int "account_id" |> Some |> AccountAccount.exportId
+                reader.intOrNone "journal_id" |> AccountJournal.exportId
+                reader.textOrNone "label" |> orEmptyString
+                reader.text "amount_type"
+                reader.boolOrNone "force_tax_included" |> orEmptyString
+                reader.doubleOrNone "amount" |> formatDecimalOption
+                reader.text "amount_string"
+                ""               //analytic_account_id
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
     static member exportMove (modelName : string) =
+
+        let header = addStampHeadersTo [
+            "id" ; "sequence_prefix" ; "sequence_number" ; "message_main_attachment_id/id" ; "access_token"
+            "name" ; "date" ; "ref" ; "narration" ; "state" ; "posted_before" ; "move_type" ; "to_check"
+            "journal_id/id" ; "company_id/.id" ; "currency_id/id" ; "partner_id/id" ; "commercial_partner_id/id"
+            "is_move_sent" ; "partner_bank_id/id" ; "payment_reference" ; "payment_id/id" ; "statement_line_id/id"
+            "amount_untaxed" ; "amount_tax" ; "amount_total" ; "amount_residual" ; "amount_untaxed_signed"
+            "amount_tax_signed" ; "amount_total_signed" ; "amount_total_in_currency_signed"
+            "amount_residual_signed" ; "payment_state" ; "tax_cash_basis_rec_id/id"
+            "tax_cash_basis_origin_move_id/id" ; "always_tax_exigible" ; "auto_post" ; "reversed_entry_id/id"
+            "fiscal_position_id/id" ; "invoice_user_id/id" ; "invoice_date" ; "invoice_date_due"
+            "invoice_origin" ; "invoice_payment_term_id/id" ; "invoice_incoterm_id/id" ; "qr_code_method"
+            "invoice_source_email" ; "invoice_partner_display_name" ; "invoice_cash_rounding_id/id"
+            "secure_sequence_number" ; "inalterable_hash"
+            "edi_state" ; "stock_move_id/id" ; "campaign_id/id" ; "source_id/id" ; "medium_id/id"
+            "team_id/id" ; "partner_shipping_id/id" ; "financial_type" ; "payment_mode_id/id" ; "payment_order_id/id"
+            "reference_type" ; "mandate_id/id" ; "thirdparty_invoice" ; "thirdparty_number" ; "not_in_mod347"
+        ]
+
+        let sql = """
+            with
+			rel_res_currency as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'res.currency'
+                and module not like '\_\_%'
+            ),
+			rel_fiscal_position as (
+                select module, model, res_id as id, 'account.' || name as external_id
+                from ir_model_data
+                where model = 'account.fiscal.position'
+            ),
+            rel_account_payment_term as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'account.payment.term'
+                and module not like '\_\_%'
+            ),
+            rel_crm_team as (
+                select module, model, res_id as id, module || '.' || name as external_id
+                from ir_model_data
+                where model = 'crm.team'
+                and module not like '\_\_%'
+            )
+            select
+                rrc.external_id as currency_external_id,
+                rfp.external_id as fiscal_position_external_id,
+                rapt.external_id as invoice_payment_term_external_id,
+                rct.external_id as team_external_id,
+                am.*
+            from account_move as am
+            left join rel_res_currency as rrc on am.currency_id = rrc.id
+            left join rel_fiscal_position as rfp on am.fiscal_position_id = rfp.id
+            left join rel_account_payment_term as rapt on am.invoice_payment_term_id = rapt.id
+            left join rel_crm_team as rct on am.team_id = rct.id
+            order by id
+        """
+
+        let readerFun (reader : RowReader) =
+            [
+                reader.intOrNone "id" |> AccountMove.exportId
+                reader.textOrNone "sequence_prefix" |> orEmptyString
+                reader.intOrNone "sequence_number" |> orEmptyString
+                ""               // message_main_attachment_id
+                reader.textOrNone "access_token" |> orEmptyString
+                reader.textOrNone "name" |> orEmptyString
+                reader.dateOnly "date" |> Some |> dateOrEmptyString
+                reader.textOrNone "ref" |> orEmptyString
+                reader.textOrNone "narration" |> orEmptyString
+                reader.text "state"
+                reader.boolOrNone "posted_before" |> orEmptyString
+                reader.text "move_type"
+                reader.boolOrNone "to_check" |> orEmptyString
+                reader.int "journal_id" |> Some |> AccountJournal.exportId
+                reader.intOrNone "company_id" |> orEmptyString
+                reader.text "currency_external_id"
+                reader.intOrNone "partner_id" |> ResPartner.exportId
+                reader.intOrNone "commercial_partner_id" |> ResPartner.exportId
+                reader.boolOrNone "is_move_sent" |> orEmptyString
+                reader.intOrNone "partner_bank_id" |> ResPartnerBank.exportId
+                reader.textOrNone "payment_reference" |> orEmptyString
+                reader.intOrNone "payment_id" |> AccountPayment.exportId
+                reader.intOrNone "statement_line_id" |> AccountBankStatementLine.exportId
+                reader.doubleOrNone "amount_untaxed" |> formatDecimalOption
+                reader.doubleOrNone "amount_tax" |> formatDecimalOption
+                reader.doubleOrNone "amount_total" |> formatDecimalOption
+                reader.doubleOrNone "amount_residual" |> formatDecimalOption
+                reader.doubleOrNone "amount_untaxed_signed" |> formatDecimalOption
+                reader.doubleOrNone "amount_tax_signed" |> formatDecimalOption
+                reader.doubleOrNone "amount_total_signed" |> formatDecimalOption
+                reader.doubleOrNone "amount_total_in_currency_signed" |> formatDecimalOption
+                reader.doubleOrNone "amount_residual_signed" |> formatDecimalOption
+                reader.textOrNone "payment_state" |> orEmptyString
+                reader.intOrNone "tax_cash_basis_rec_id" |> AccountPartialReconcile.exportId
+                reader.intOrNone "tax_cash_basis_origin_move_id" |> AccountMove.exportId
+                reader.boolOrNone "always_tax_exigible" |> orEmptyString
+                reader.boolOrNone "auto_post" |> orEmptyString
+                reader.intOrNone "reversed_entry_id" |> AccountMove.exportId
+                reader.textOrNone "fiscal_position_external_id" |> orEmptyString
+                reader.intOrNone "invoice_user_id" |> ResUsers.exportId
+                reader.dateOnlyOrNone "invoice_date" |> orEmptyString
+                reader.dateOnlyOrNone "invoice_date_due" |> orEmptyString
+                reader.textOrNone "invoice_origin" |> orEmptyString
+
+                match reader.textOrNone "invoice_payment_term_external_id" with
+                | Some externalId -> externalId
+                | None -> reader.intOrNone "invoice_payment_term_id" |> AccountPaymentTerm.exportId
+
+                ""                     // invoice_incoterm_id
+                reader.textOrNone "qr_code_method" |> orEmptyString
+                reader.textOrNone "invoice_source_email" |> orEmptyString
+                reader.textOrNone "invoice_partner_display_name" |> orEmptyString
+                ""                    // invoice_cash_rounding_id
+                reader.intOrNone "secure_sequence_number" |> orEmptyString
+                reader.textOrNone "inalterable_hash" |> orEmptyString
+                reader.textOrNone "edi_state" |> orEmptyString
+                reader.intOrNone "stock_move_id" |> StockMove.exportId
+                ""                    // campaign_id
+                ""                    // source_id
+                ""                    // medium_id
+                reader.textOrNone "team_external_id" |> orEmptyString
+                reader.intOrNone "partner_shipping_id" |> ResPartner.exportId
+                reader.textOrNone "financial_type" |> orEmptyString
+                reader.intOrNone "payment_mode_id" |> AccountPaymentMode.exportId
+                reader.intOrNone "payment_order_id" |> AccountPaymentOrder.exportId
+                reader.textOrNone "reference_type" |> orEmptyString
+                reader.intOrNone "mandate_id" |> AccountBankingMandate.exportId
+                reader.boolOrNone "thirdparty_invoice" |> orEmptyString
+                reader.textOrNone "thirdparty_number" |> orEmptyString
+                reader.boolOrNone "not_in_mod347" |> orEmptyString
+
+                yield! readStampFields reader
+            ]
+
+        header::ISqlBroker.getExportData sql readerFun
+        |> IExcelBroker.exportFile $"{modelName}.xlsx"
+    //------------------------------------------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------------------------------------------
+    static member exportMove_old (modelName : string) =
 
         failwith "Todavía no implementado al completo."
         //------------------------------------------------------------------------------------------------------------------

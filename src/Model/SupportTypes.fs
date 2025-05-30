@@ -62,6 +62,12 @@ type AccountPaymentLine = AccountPaymentLine with
 type AccountPaymentTerm = AccountPaymentTerm with
     static member exportId idOption = exportId "account_payment_term" idOption
 
+type AccountReconcileModel = AccountReconcileModel with
+    static member exportId idOption = exportId "account_reconcile_model" idOption
+
+type AccountReconcileModelLine = AccountReconcileModelLine with
+    static member exportId idOption = exportId "account_reconcile_model_line" idOption
+
 type AccountPaymentTermLine = AccountPaymentTermLine with
     static member exportId idOption = exportId "account_payment_term_line" idOption
 
@@ -97,6 +103,12 @@ type AccountMove= AccountMove with
 
 type AccountMoveLine = AccountMoveLine with
     static member exportId idOption = exportId "account_move_line" idOption
+
+type AccountPartialReconcile = AccountPartialReconcile with
+    static member exportId idOption = exportId "account_partial_reconcile" idOption
+
+type AccountFullReconcile = AccountFullReconcile with
+    static member exportId idOption = exportId "account_full_reconcile" idOption
 
 type DefaultValue = DefaultValue with
     static member exportId idOption = exportId "ir_default" idOption

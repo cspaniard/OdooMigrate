@@ -65,8 +65,12 @@ let exportList =
         ("account_payment_method", IAccountExportService.exportPaymentMethod)
         ("account_payment_term", IAccountExportService.exportPaymentTerm)
         ("account_banking_mandate", IAccountExportService.exportBankingMandate)
-        ("account_opening_move_15", IAccountExportService.exportOpeningMove)
-        // ("account_move", IAccountExportService.exportMove)            // Pendiente
+        // ("account_opening_move_15", IAccountExportService.exportOpeningMove)
+        ("account_full_reconcile", IAccountExportService.exportFullReconcile)
+        ("account_partial_reconcile", IAccountExportService.exportPartialReconcile)
+        ("account_reconcile_model", IAccountExportService.exportReconcileModel)
+        ("account_reconcile_model_line", IAccountExportService.exportReconcileModelLine)
+        ("account_move", IAccountExportService.exportMove)            // Pendiente
 
         ("product_category", IProductExportService.exportCategory)
         ("product_template", IProductExportService.exportTemplate)
