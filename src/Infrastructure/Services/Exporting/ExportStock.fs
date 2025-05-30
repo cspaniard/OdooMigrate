@@ -340,7 +340,7 @@ type ExportStock () =
             "default_location_dest_id/id" ; "code" ; "return_picking_type_id/id" ; "show_entire_packs"
             "warehouse_id/id" ; "active" ; "use_create_lots" ; "use_existing_lots" ; "print_label"
             "show_operations" ; "show_reserved" ; "reservation_method" ; "reservation_days_before"
-            "reservation_days_before_priority" ; "barcode" ; "company_id/id"
+            "reservation_days_before_priority" ; "barcode" ; "company_id/.id"
         ]
 
         let sql = """
