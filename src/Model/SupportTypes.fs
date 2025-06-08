@@ -7,7 +7,7 @@ module Constants =
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=zzz_fama_bolsa; Username=postgres; Password=HolaJuan1947;"
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=gestion1; Username=postgres; Password=HolaJuan1947;"
     let [<Literal>] CONNECTION_STRING_15 = "Host=localhost; Database=zzz_deysanka_15; Username=postgres; Password=HolaJuan1947;"
-    let [<Literal>] CONNECTION_STRING_17 = "Host=localhost; Database=t5; Username=postgres; Password=HolaJuan1947;"
+    let [<Literal>] CONNECTION_STRING_17 = "Host=localhost; Database=t7_tax; Username=postgres; Password=HolaJuan1947;"
     // let [<Literal>] CONNECTION_STRING = "Host=localhost; Database=zzz_Nueva_Dieta_Facil; Username=dsanroma; Password=pepe;"
     // let [<Literal>] CONNECTION_STRING = "Host=odoo3; Database=Nueva_Dieta_Facil; Username=dsanroma; Password=HolaJuan1947;"
 
@@ -71,8 +71,14 @@ type AccountReconcileModelLine = AccountReconcileModelLine with
 type AccountPaymentTermLine = AccountPaymentTermLine with
     static member exportId idOption = exportId "account_payment_term_line" idOption
 
+type AccountPaymentMethodLine = AccountPaymentMethodLine with
+    static member exportId idOption = exportId "account_payment_method_line" idOption
+
 type AccountJournal = AccountJournal with
     static member exportId idOption = exportId "account_journal" idOption
+
+type AccountTaxRepartitionLine = AccountTaxRepartitionLine with
+    static member exportId idOption = exportId "account_tax_repartition_line" idOption
 
 type AccountBankingMandate = AccountBankingMandate with
     static member exportId idOption = exportId "account_banking_mandate" idOption
